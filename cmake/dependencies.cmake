@@ -72,15 +72,18 @@ set(DEP_GRPC_PROVIDER_ARGS
 # rather than to whichever one the SDK happens to offer.
 set(ZLIB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib)
 
-# These two are cross-only: gRPC's vendored abseil predates the "SHELL:" fix for
-# -Xarch flag pairing, and the -Wno- flag exists because osxcross uses the host
-# clang, which is far newer than Xcode's. A native build should stay as close to
-# upstream as possible.
+# gRPC 1.63 predates clang making missing-template-arg-list-after-template-kw an
+# error by default, so basic_seq.h stops compiling under any sufficiently recent
+# clang -- the Command Line Tools' clang 21 as much as the newer host clang
+# osxcross uses. Put it back to a warning.
+set(DEP_GRPC_CXXFLAGS_ARG
+  -DCMAKE_CXX_FLAGS=-Wno-missing-template-arg-list-after-template-kw)
+
+# Cross-only: gRPC's vendored abseil predates the "SHELL:" fix for -Xarch flag
+# pairing. A native build should stay as close to upstream as possible.
 if(CMAKE_TOOLCHAIN_FILE)
   list(APPEND DEP_GRPC_PROVIDER_ARGS
     -DgRPC_ABSL_PROVIDER=package)
-  set(DEP_GRPC_CXXFLAGS_ARG
-    -DCMAKE_CXX_FLAGS=-Wno-missing-template-arg-list-after-template-kw)
 endif()
 
 # roc-toolkit builds under scons rather than CMake, so it needs telling
