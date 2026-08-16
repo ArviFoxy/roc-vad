@@ -94,9 +94,9 @@ set(ROC_3RDPARTY "all" CACHE STRING
   "Value passed to roc-toolkit's scons --build-3rdparty")
 
 # Roc
-set(ROC_SOURCE "file:///home/arvi/roc-toolkit"
+set(ROC_SOURCE "https://github.com/ArviFoxy/roc-toolkit.git"
   CACHE STRING "roc-toolkit git repository (URL or local path)")
-set(ROC_TAG "2bf2aabd"
+set(ROC_TAG "deploy"
   CACHE STRING "roc-toolkit git tag/branch/commit")
 
 set(SCONS_CMD
