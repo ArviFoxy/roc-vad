@@ -7,6 +7,7 @@
  */
 
 #include "request_handler.hpp"
+#include "volume_control.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -17,14 +18,32 @@ namespace rocvad {
 
 RequestHandler::RequestHandler(const std::string& device_uid,
     const DeviceLocalEncoding& device_encoding,
-    std::shared_ptr<Transceiver> net_transceiver)
+    std::shared_ptr<Transceiver> net_transceiver,
+    std::shared_ptr<aspl::VolumeControl> volume_control)
     : device_uid_(device_uid)
     , chan_count_(device_encoding.channel_count)
     , net_transceiver_(net_transceiver)
+    , volume_control_(volume_control)
     , ring_buf_(device_encoding.buffer_samples * device_encoding.channel_count)
     , io_buf_(device_encoding.buffer_samples * device_encoding.channel_count)
 {
     assert(net_transceiver_);
+    assert(volume_control_);
+}
+
+// Realtime safe: the control's raw value is an atomic, and the curve is a
+// handful of arithmetic ops evaluated once per buffer rather than per sample.
+void RequestHandler::apply_volume_(float* samples, size_t sample_cnt) const
+{
+    const float gain = volume_scalar_to_gain(volume_control_->GetScalarValue());
+
+    if (gain == 1.0f) {
+        return;
+    }
+
+    for (size_t i = 0; i < sample_cnt; i++) {
+        samples[i] *= gain;
+    }
 }
 
 // Implements aspl::ControlRequestHandler.
@@ -82,6 +101,7 @@ void RequestHandler::OnReadClientInput(const std::shared_ptr<aspl::Client>& clie
         // it's time to request more samples from receiver and
         // append to ring buffer
         net_transceiver_->read(io_buf_.data(), wr_samples);
+        apply_volume_(io_buf_.data(), wr_samples);
 
         ring_buf_.write(ring_buf_.first_write() ? sample_ts : ring_buf_.tail_timestamp(),
             io_buf_.data(),
@@ -129,6 +149,8 @@ void RequestHandler::OnWriteMixedOutput(const std::shared_ptr<aspl::Stream>& str
         // pass to sender
         ring_buf_.read(ring_buf_pos_, io_buf_.data(), rd_samples);
         ring_buf_pos_ += rd_samples;
+
+        apply_volume_(io_buf_.data(), rd_samples);
 
         net_transceiver_->write(io_buf_.data(), rd_samples);
     }

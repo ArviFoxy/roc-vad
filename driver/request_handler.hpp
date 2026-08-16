@@ -22,9 +22,14 @@ namespace rocvad {
 class RequestHandler : public aspl::ControlRequestHandler, public aspl::IORequestHandler
 {
 public:
+    // volume_control is read, never attached to the stream: libASPL's own
+    // ApplyProcessing() multiplies samples by the scalar, which is a
+    // linear-amplitude taper. The gain is applied here instead, through
+    // volume_scalar_to_gain().
     RequestHandler(const std::string& device_uid,
         const DeviceLocalEncoding& device_encoding,
-        std::shared_ptr<Transceiver> net_transceiver);
+        std::shared_ptr<Transceiver> net_transceiver,
+        std::shared_ptr<aspl::VolumeControl> volume_control);
 
     RequestHandler(const RequestHandler&) = delete;
     RequestHandler& operator=(const RequestHandler&) = delete;
@@ -50,11 +55,14 @@ public:
 private:
     using timestamp_t = RingBuffer::timestamp_t;
 
+    void apply_volume_(float* samples, size_t sample_cnt) const;
+
     const std::string device_uid_;
 
     const size_t chan_count_;
 
     std::shared_ptr<Transceiver> net_transceiver_;
+    std::shared_ptr<aspl::VolumeControl> volume_control_;
 
     RingBuffer ring_buf_;
     timestamp_t ring_buf_pos_ = 0;

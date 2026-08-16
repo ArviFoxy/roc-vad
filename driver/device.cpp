@@ -22,16 +22,6 @@ namespace rocvad {
 
 namespace {
 
-// Span of the volume slider, and the level a newly created device starts at.
-//
-// 60 dB matches librespot's --volume-range and shairport-sync's
-// volume_range_db, the two other sources feeding the same sink, so a given
-// percentage means the same attenuation on all three. Starting at half of it
-// (-30 dB) rather than at the top, because libASPL's default of full scale is
-// an unpleasant surprise on a device connected to a power amplifier.
-constexpr Float32 VolumeRangeDb = -60;
-constexpr Float32 InitialVolumeScalar = 0.5f;
-
 size_t compute_channel_count(roc_channel_layout channel_layout)
 {
     switch (channel_layout) {
@@ -204,39 +194,37 @@ Device::Device(std::shared_ptr<aspl::Plugin> hal_plugin,
     // create HAL device
     hal_device_ = std::make_shared<aspl::Device>(
         hal_plugin_->GetContext(), make_device_params(info_));
-    // add single input our output stream with volume control
+    // add single input our output stream, with volume and mute controls
     //
-    // Spelled out rather than using AddStreamWithControlsAsync(), which is just
-    // this sequence with a stock aspl::VolumeControl. That control multiplies
-    // samples by the scalar, giving a linear-amplitude taper; LogVolumeControl
-    // maps the scalar onto decibels instead, matching librespot's slider.
-    {
-        const auto stream_params = make_stream_params(info_);
+    // Spelled out rather than using AddStreamWithControlsAsync(), which is this
+    // sequence plus stream->AttachVolumeControl(). Attaching is what makes
+    // libASPL apply the volume itself, and it does so by multiplying samples by
+    // the scalar, which is a linear-amplitude taper: half the slider would be
+    // -6 dB and a tenth of it -20 dB, leaving no usable range. The control is
+    // still published to the HAL, so the slider works; RequestHandler reads it
+    // and applies a logarithmic taper instead. Mute is attached as usual, its
+    // behaviour being a plain on/off.
+    const auto stream_params = make_stream_params(info_);
 
-        const auto scope = stream_params.Direction == aspl::Direction::Output
-                               ? kAudioObjectPropertyScopeOutput
-                               : kAudioObjectPropertyScopeInput;
+    const auto volume_scope = stream_params.Direction == aspl::Direction::Output
+                                  ? kAudioObjectPropertyScopeOutput
+                                  : kAudioObjectPropertyScopeInput;
 
-        auto stream = hal_device_->AddStreamAsync(stream_params);
+    auto hal_stream = hal_device_->AddStreamAsync(stream_params);
 
-        aspl::VolumeControlParameters volume_params;
-        volume_params.Scope = scope;
-        volume_params.MinDecibelVolume = VolumeRangeDb;
-        volume_params.MaxDecibelVolume = 0;
+    aspl::VolumeControlParameters volume_params;
+    volume_params.Scope = volume_scope;
+    volume_params.MinDecibelVolume = -VolumeRangeDb;
+    volume_params.MaxDecibelVolume = 0;
 
-        auto volume_control = std::make_shared<LogVolumeControl>(
-            hal_plugin_->GetContext(), volume_params, InitialVolumeScalar);
+    auto volume_control = hal_device_->AddVolumeControlAsync(volume_params);
+    volume_control->SetScalarValue(InitialVolumeScalar);
 
-        hal_device_->AddVolumeControlAsync(volume_control);
-        stream->AttachVolumeControl(volume_control);
-
-        auto mute_control = hal_device_->AddMuteControlAsync(scope);
-        stream->AttachMuteControl(mute_control);
-    }
+    hal_stream->AttachMuteControl(hal_device_->AddMuteControlAsync(volume_scope));
 
     // create HAL request handler
     req_handler_ = std::make_shared<RequestHandler>(
-        info_.uid, info_.device_encoding, net_transceiver_);
+        info_.uid, info_.device_encoding, net_transceiver_, volume_control);
     // register handler
     hal_device_->SetControlHandler(req_handler_);
     hal_device_->SetIOHandler(req_handler_);

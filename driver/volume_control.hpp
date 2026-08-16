@@ -8,60 +8,32 @@
 
 #pragma once
 
-#include <aspl/VolumeControl.hpp>
-
-#include <memory>
-
 namespace rocvad {
 
-// Volume control with a logarithmic taper.
+// Span of the volume slider, in dB below unity.
 //
-// libASPL's default control multiplies samples by the scalar itself, which is a
-// linear-amplitude taper: half the slider is -6 dB and a tenth of it is -20 dB,
-// so the entire useful range sits in the bottom of the travel. It also computes
-// a separate curve for the decibel values it reports to the HAL, so the mapping
-// it advertises and the one it applies disagree.
+// Matches librespot's --volume-range and shairport-sync's volume_range_db, the
+// two other sources feeding the same sink on the server, so a given percentage
+// means the same attenuation on all three.
+constexpr float VolumeRangeDb = 60;
+
+// Where a newly created device starts. libASPL would start at full scale, which
+// is an unpleasant surprise on a device connected to a power amplifier.
+constexpr float InitialVolumeScalar = 0.5f;
+
+// Decibels for a CoreAudio volume scalar, linear across the range: 100% is
+// 0 dB, 50% is -VolumeRangeDb/2, 0% is -VolumeRangeDb.
 //
-// This maps the scalar linearly onto the decibel range instead, which is what
-// librespot does for the Spotify stream this driver plays alongside (its
-// LogMapping over a 60 dB range works out to dB = 60 * (scalar - 1)). Given the
-// same range, the two sliders then behave identically at the same percentage.
+// This is librespot's mapping. Its LogMapping computes
+// exp(ln(10^(r/20)) * v) / 10^(r/20), which is 10^(r*(v-1)/20), i.e. exactly
+// linear in decibels.
+float volume_scalar_to_decibels(float scalar, float db_range = VolumeRangeDb);
+
+// Gain factor to multiply samples by for a given scalar.
 //
-// The decibel range comes from VolumeControlParameters, so it is chosen where
-// the control is constructed rather than fixed here.
-class LogVolumeControl : public aspl::VolumeControl
-{
-public:
-    // initial_scalar is where a brand-new device starts. libASPL would begin at
-    // MaxRawVolume, i.e. full scale, which is a poor first impression for a
-    // device wired to a power amplifier. Only applies the first time: for a
-    // device it has seen before, CoreAudio restores its own stored volume.
-    LogVolumeControl(std::shared_ptr<const aspl::Context> context,
-        const aspl::VolumeControlParameters& params,
-        Float32 initial_scalar);
-
-    // Linear in decibels, unlike the base class, which applies a power curve
-    // between scalar and raw and then reports decibels derived from it.
-    Float32 GetScalarValue() const override;
-    OSStatus SetScalarValue(Float32 value) override;
-
-    Float32 ConvertScalarToDecibels(Float32 value) const override;
-    Float32 ConvertDecibelsToScalar(Float32 value) const override;
-
-    // Invoked on the realtime thread by Stream::ApplyProcessing().
-    void ApplyProcessing(Float32* frames,
-        UInt32 frameCount,
-        UInt32 channelCount) const override;
-
-    // Gain this control would apply at the given scalar. Exposed so tests can
-    // check the curve without a HAL device.
-    Float32 gain_for_scalar(Float32 scalar) const;
-
-private:
-    const SInt32 min_raw_;
-    const SInt32 max_raw_;
-    const Float32 min_db_;
-    const Float32 max_db_;
-};
+// Both ends are exact rather than left to the exponential, so that zero is
+// silence and full scale is bit transparent; librespot short-circuits the same
+// two points.
+float volume_scalar_to_gain(float scalar, float db_range = VolumeRangeDb);
 
 } // namespace rocvad
