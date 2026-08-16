@@ -60,15 +60,24 @@ if(CMAKE_TOOLCHAIN_FILE)
   endforeach()
 endif()
 
-# gRPC's vendored zlib and abseil only misbehave when cross-compiling: the zlib
-# copy keys off TARGET_OS_MAC and thinks it is classic Mac OS, and the abseil
-# copy predates the SHELL: fix for -Xarch flag pairing. Building both ourselves
-# avoids that, but it is not wanted for a native build, which should stay as
-# close to upstream as possible. Likewise the -Wno- flag, which exists because
-# osxcross uses the host clang and that is far newer than Xcode's.
+# gRPC's vendored zlib is broken on macOS however it is built, natively
+# included: zutil.h keys off TARGET_OS_MAC, concludes it is targeting classic
+# Mac OS, and defines "fdopen(fd,mode) NULL", after which Apple's own <stdio.h>
+# fails to parse. Point gRPC at the modern zlib built below instead.
+set(DEP_GRPC_PROVIDER_ARGS
+  -DgRPC_ZLIB_PROVIDER=package)
+
+# gRPCConfig.cmake calls find_package(ZLIB) when the provider is "package", so
+# the main pass has to resolve zlib to the same copy gRPC was built against
+# rather than to whichever one the SDK happens to offer.
+set(ZLIB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib)
+
+# These two are cross-only: gRPC's vendored abseil predates the "SHELL:" fix for
+# -Xarch flag pairing, and the -Wno- flag exists because osxcross uses the host
+# clang, which is far newer than Xcode's. A native build should stay as close to
+# upstream as possible.
 if(CMAKE_TOOLCHAIN_FILE)
-  set(DEP_GRPC_PROVIDER_ARGS
-    -DgRPC_ZLIB_PROVIDER=package
+  list(APPEND DEP_GRPC_PROVIDER_ARGS
     -DgRPC_ABSL_PROVIDER=package)
   set(DEP_GRPC_CXXFLAGS_ARG
     -DCMAKE_CXX_FLAGS=-Wno-missing-template-arg-list-after-template-kw)
@@ -470,21 +479,26 @@ list(PREPEND CMAKE_PREFIX_PATH
   ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/googletest/lib/cmake
 )
 
-# List of all third-party dependencies
+# abseil is only built here when cross-compiling; see the provider args above.
+if(CMAKE_TOOLCHAIN_FILE)
+  set(DEP_ABSL absl_lib)
+endif()
+
+# List of all third-party dependencies.
+# Order matters: the loop below makes each entry depend on every entry before
+# it, so anything gRPC consumes has to be listed ahead of grpc_lib.
 set(ALL_DEPENDENCIES
   roc_lib
   aspl_lib
   boringssl_lib
+  zlib_lib
+  ${DEP_ABSL}
   grpc_lib
   fmt_lib
   spdlog_lib
   cli11_lib
   googletest_lib
 )
-
-if(CMAKE_TOOLCHAIN_FILE)
-  list(APPEND ALL_DEPENDENCIES zlib_lib absl_lib)
-endif()
 
 # Serialize dependencies
 # (each one depends on previous in list)
