@@ -24,6 +24,7 @@ public:
 
 private:
     std::optional<std::string> device_uid_;
+    std::optional<uint32_t> max_packet_size_;
     std::optional<std::string> device_name_;
     std::optional<bool> device_disabled_;
 

@@ -101,6 +101,9 @@ enum_map<rvpb::RvLatencyTunerProfile, roc_latency_tuner_profile>
         {rvpb::RV_LATENCY_TUNER_PROFILE_GRADUAL,
             ROC_LATENCY_TUNER_PROFILE_GRADUAL,
             "gradual"},
+        {rvpb::RV_LATENCY_TUNER_PROFILE_SECOND_ORDER,
+            ROC_LATENCY_TUNER_PROFILE_SECOND_ORDER,
+            "second-order"},
     };
 
 enum_map<rvpb::RvResamplerBackend, roc_resampler_backend> resampler_backend_map {

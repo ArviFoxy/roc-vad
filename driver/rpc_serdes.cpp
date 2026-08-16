@@ -195,6 +195,11 @@ void device_info_from_rpc(DeviceInfo& out, const rvpb::RvDeviceInfo& in)
                 in.sender_config().fec_encoding());
         }
 
+        // max_packet_size
+        if (in.sender_config().has_max_packet_size()) {
+            out.sender_config->max_packet_size = in.sender_config().max_packet_size();
+        }
+
         // fec_block_source_packets
         if (in.sender_config().has_fec_block_source_packets()) {
             out.sender_config->fec_block_source_packets =
@@ -295,6 +300,11 @@ void device_info_from_rpc(DeviceInfo& out, const rvpb::RvDeviceInfo& in)
                     in.receiver_config().resampler_profile());
         }
 
+        // max_packet_size
+        if (in.receiver_config().has_max_packet_size()) {
+            out.receiver_config->max_packet_size = in.receiver_config().max_packet_size();
+        }
+
         // target_latency
         if (in.receiver_config().has_target_latency()) {
             out.receiver_config->target_latency_ns = nanoseconds_from_rpc(
@@ -389,6 +399,10 @@ void device_info_to_rpc(rvpb::RvDeviceInfo& out, const DeviceInfo& in)
                 fec_encoding_map,
                 in.sender_config->fec_encoding));
 
+        // max_packet_size
+        out.mutable_sender_config()->set_max_packet_size(
+            in.sender_config->max_packet_size);
+
         // fec_block_source_packets
         out.mutable_sender_config()->set_fec_block_source_packets(
             in.sender_config->fec_block_source_packets);
@@ -443,6 +457,10 @@ void device_info_to_rpc(rvpb::RvDeviceInfo& out, const DeviceInfo& in)
 
             *out.mutable_receiver_config()->add_packet_encodings() = out_encoding;
         }
+
+        // max_packet_size
+        out.mutable_receiver_config()->set_max_packet_size(
+            in.receiver_config->max_packet_size);
 
         // latency_tuner_backend
         out.mutable_receiver_config()->set_latency_tuner_backend(

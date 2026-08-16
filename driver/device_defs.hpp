@@ -77,6 +77,9 @@ struct DeviceSenderConfig
 
     int64_t target_latency_ns = 0;
     int64_t latency_tolerance_ns = 0;
+
+    // roc_context_config limit; 0 leaves roc's default in place.
+    uint32_t max_packet_size = 0;
 };
 
 // Network parameters of sender device.
@@ -95,6 +98,9 @@ struct DeviceReceiverConfig
 
     int64_t no_playback_timeout_ns = 0;
     int64_t choppy_playback_timeout_ns = 0;
+
+    // roc_context_config limit; 0 leaves roc's default in place.
+    uint32_t max_packet_size = 0;
 };
 
 // Device endpoint info.

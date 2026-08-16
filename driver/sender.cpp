@@ -26,6 +26,10 @@ Sender::Sender(const std::string& device_uid,
     roc_context_config net_context_config;
     memset(&net_context_config, 0, sizeof(net_context_config));
 
+    // Zero means "roc decides", which is what the memset above already leaves
+    // in place, so an unset option costs nothing.
+    net_context_config.max_packet_size = device_sender_config.max_packet_size;
+
     if ((err = roc_context_open(&net_context_config, &net_context_)) < 0) {
         throw std::runtime_error(
             fmt::format("can't open network context: uid={} err={}", device_uid_, err));

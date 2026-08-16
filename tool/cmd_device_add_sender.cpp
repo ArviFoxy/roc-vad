@@ -51,6 +51,10 @@ CmdDeviceAddSender::CmdDeviceAddSender(CLI::App& parent)
     // packet_encoding
     auto packet_encoding_opts = command->add_option_group("Packet encoding");
 
+    packet_encoding_opts->add_option("--max-packet-size",
+        max_packet_size_,
+        "Maximum network packet size in bytes (omit for roc default)");
+
     packet_encoding_opts->add_option("--packet-length",
         packet_length_,
         fmt::format("Packet length (number with one of the suffixes: {})",
@@ -197,6 +201,9 @@ bool CmdDeviceAddSender::execute(const Environment& env)
                 *request.mutable_sender_config()->mutable_packet_length())) {
             return false;
         }
+    }
+    if (max_packet_size_) {
+        request.mutable_sender_config()->set_max_packet_size(*max_packet_size_);
     }
     if (packet_encoding_id_) {
         request.mutable_sender_config()->mutable_packet_encoding()->set_encoding_id(

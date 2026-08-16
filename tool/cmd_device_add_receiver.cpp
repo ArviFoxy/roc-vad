@@ -51,6 +51,10 @@ CmdDeviceAddReceiver::CmdDeviceAddReceiver(CLI::App& parent)
     // packet_encoding
     auto packet_encoding_opts = command->add_option_group("Packet encoding");
 
+    packet_encoding_opts->add_option("--max-packet-size",
+        max_packet_size_,
+        "Maximum network packet size in bytes (omit for roc default)");
+
     packet_encoding_opts->add_option("--packet-encoding-id",
         packet_encoding_id_,
         "Unique identifier to use for packet encoding");
@@ -190,7 +194,10 @@ bool CmdDeviceAddReceiver::execute(const Environment& env)
         packet_encoding_chans_ || packet_encoding_tracks_) {
         rvpb::RvPacketEncoding packet_encoding;
 
-        if (packet_encoding_id_) {
+        if (max_packet_size_) {
+        request.mutable_receiver_config()->set_max_packet_size(*max_packet_size_);
+    }
+    if (packet_encoding_id_) {
             packet_encoding.set_encoding_id(*packet_encoding_id_);
         }
         if (packet_encoding_rate_) {

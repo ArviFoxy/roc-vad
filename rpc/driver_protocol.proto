@@ -282,6 +282,11 @@ message RvSenderConfig
     // Use only if you need sender-side latency tuning.
     // Keep unset to disable.
     optional google.protobuf.Duration latency_tolerance = 13;
+
+    // Maximum size of an outgoing network packet, in bytes.
+    // Limits how much audio roc puts in one packet, so it can be kept under
+    // the path MTU. Keep unset to use roc's default.
+    optional uint32 max_packet_size = 14;
 }
 
 // Parameters of receiver device.
@@ -325,6 +330,11 @@ message RvReceiverConfig
     // Timeout for choppy playback.
     // Keep unset to use default.
     optional google.protobuf.Duration choppy_playback_timeout = 10;
+
+    // Maximum size of an incoming network packet, in bytes.
+    // Sizes roc's receive buffers; must be at least what the sender emits.
+    // Keep unset to use roc's default.
+    optional uint32 max_packet_size = 12;
 }
 
 // Local encoding of virtual device.
@@ -524,6 +534,10 @@ enum RvLatencyTunerProfile
     // Gradual latency tuning.
     // Clock speed is adjusted slowly and smoothly.
     RV_LATENCY_TUNER_PROFILE_GRADUAL = 3;
+
+    // Second-order latency tuning.
+    // Clock speed is adjusted using a second-order control loop.
+    RV_LATENCY_TUNER_PROFILE_SECOND_ORDER = 4;
 }
 
 // Resampler backend.
