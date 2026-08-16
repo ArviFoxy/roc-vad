@@ -55,9 +55,23 @@ set(DEP_POLICY_ARG -DCMAKE_POLICY_VERSION_MINIMUM=3.5)
 # being handed OPENSSL_ROOT_DIR, and the main build would then fail the same
 # way looking for libASPL and gRPC.
 if(CMAKE_TOOLCHAIN_FILE)
-  foreach(DEP roc aspl boringssl zlib grpc fmt spdlog cli11 googletest)
+  foreach(DEP roc aspl boringssl zlib absl grpc fmt spdlog cli11 googletest)
     list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/${DEP})
   endforeach()
+endif()
+
+# gRPC's vendored zlib and abseil only misbehave when cross-compiling: the zlib
+# copy keys off TARGET_OS_MAC and thinks it is classic Mac OS, and the abseil
+# copy predates the SHELL: fix for -Xarch flag pairing. Building both ourselves
+# avoids that, but it is not wanted for a native build, which should stay as
+# close to upstream as possible. Likewise the -Wno- flag, which exists because
+# osxcross uses the host clang and that is far newer than Xcode's.
+if(CMAKE_TOOLCHAIN_FILE)
+  set(DEP_GRPC_PROVIDER_ARGS
+    -DgRPC_ZLIB_PROVIDER=package
+    -DgRPC_ABSL_PROVIDER=package)
+  set(DEP_GRPC_CXXFLAGS_ARG
+    -DCMAKE_CXX_FLAGS=-Wno-missing-template-arg-list-after-template-kw)
 endif()
 
 # roc-toolkit builds under scons rather than CMake, so it needs telling
@@ -227,6 +241,49 @@ list(PREPEND CMAKE_PREFIX_PATH
   ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib/lib/cmake
 )
 
+# abseil
+# gRPC 1.63 vendors abseil 20240116.0, whose CMake emits
+# "-Xarch_x86_64 -maes -Xarch_x86_64 -msse4.1" for randen_hwaes. CMake
+# de-duplicates repeated compile options, collapsing that to
+# "-Xarch_x86_64 -maes -msse4.1" — and since -Xarch_ guards only the argument
+# that follows it, -msse4.1 leaks onto the arm64 compile and clang rejects it.
+# Abseil fixed this in 20240722 ("Fixup absl_random compile breakage in Apple
+# ARM64 targets") by using CMake's SHELL: prefix, which keeps the pair together
+# and exempt from de-duplication. 20240722.2 is the next LTS after the version
+# gRPC expects, so it is the smallest jump that carries the fix.
+ExternalProject_Add(absl_lib
+  GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
+  GIT_TAG "20240722.2"
+  GIT_SHALLOW ON
+  GIT_PROGRESS ON
+  UPDATE_DISCONNECTED ON
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl
+  LIST_SEPARATOR ${LIST_SEPARATOR}
+  CMAKE_ARGS
+    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
+    -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
+    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+    -DCMAKE_CXX_STANDARD=17
+    -DABSL_PROPAGATE_CXX_STD=ON
+    -DABSL_ENABLE_INSTALL=ON
+    -DBUILD_TESTING=OFF
+  BUILD_COMMAND
+    ${CMAKE_COMMAND} --build . -- -j ${NUM_CPU}
+  LOG_DOWNLOAD ${ENABLE_LOGS}
+  LOG_CONFIGURE ${ENABLE_LOGS}
+  LOG_BUILD ${ENABLE_LOGS}
+  LOG_INSTALL ${ENABLE_LOGS}
+)
+include_directories(SYSTEM
+  ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl/include
+)
+list(PREPEND CMAKE_PREFIX_PATH
+  ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl/lib/cmake
+)
+
 # gRPC
 ExternalProject_Add(grpc_lib
   GIT_REPOSITORY "https://github.com/grpc/grpc.git"
@@ -255,13 +312,14 @@ ExternalProject_Add(grpc_lib
     -DgRPC_BUILD_GRPC_PYTHON_PLUGIN=OFF
     -DgRPC_BUILD_GRPC_RUBY_PLUGIN=OFF
     -DgRPC_SSL_PROVIDER=package
-    -DgRPC_ZLIB_PROVIDER=package
+    ${DEP_GRPC_PROVIDER_ARGS}
+    ${DEP_GRPC_CXXFLAGS_ARG}
     -DZLIB_ROOT=${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib
     -DOPENSSL_ROOT_DIR=${CMAKE_CURRENT_BINARY_DIR}/3rdparty/boringssl
     -DOPENSSL_USE_STATIC_LIBS=ON
     # cross toolchains restrict find_* to the SDK root; BoringSSL lives outside
     # it, so OPENSSL_ROOT_DIR alone is not enough to make FindOpenSSL see it
-    -DCMAKE_FIND_ROOT_PATH=${CMAKE_CURRENT_BINARY_DIR}/3rdparty/boringssl${LIST_SEPARATOR}${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib
+    -DCMAKE_FIND_ROOT_PATH=${CMAKE_CURRENT_BINARY_DIR}/3rdparty/boringssl${LIST_SEPARATOR}${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib${LIST_SEPARATOR}${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl
   BUILD_COMMAND
     ${CMAKE_COMMAND} --build . -- -j ${NUM_CPU}
   LOG_DOWNLOAD ${ENABLE_LOGS}
@@ -417,13 +475,16 @@ set(ALL_DEPENDENCIES
   roc_lib
   aspl_lib
   boringssl_lib
-  zlib_lib
   grpc_lib
   fmt_lib
   spdlog_lib
   cli11_lib
   googletest_lib
 )
+
+if(CMAKE_TOOLCHAIN_FILE)
+  list(APPEND ALL_DEPENDENCIES zlib_lib absl_lib)
+endif()
 
 # Serialize dependencies
 # (each one depends on previous in list)
