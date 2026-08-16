@@ -51,8 +51,8 @@ struct RequestHandlerTest : testing::Test
             {
                 .sample_rate = sample_rate,
                 .channel_layout = ROC_CHANNEL_LAYOUT_STEREO,
-                .channel_count = chan_count,
                 .buffer_length_ns = 1'000'000'000,
+                .channel_count = chan_count,
                 .buffer_samples = sample_rate * chan_count,
             },
         .sender_config =
@@ -89,8 +89,8 @@ struct RequestHandlerTest : testing::Test
             {
                 .sample_rate = sample_rate,
                 .channel_layout = ROC_CHANNEL_LAYOUT_STEREO,
-                .channel_count = chan_count,
                 .buffer_length_ns = 1'000'000'000,
+                .channel_count = chan_count,
                 .buffer_samples = sample_rate * chan_count,
             },
         .receiver_config =
