@@ -65,12 +65,21 @@ endif()
 # Mac OS, and defines "fdopen(fd,mode) NULL", after which Apple's own <stdio.h>
 # fails to parse. Point gRPC at the modern zlib built below instead.
 set(DEP_GRPC_PROVIDER_ARGS
-  -DgRPC_ZLIB_PROVIDER=package)
+  -DgRPC_ZLIB_PROVIDER=package
+  -DZLIB_USE_STATIC_LIBS=ON)
 
 # gRPCConfig.cmake calls find_package(ZLIB) when the provider is "package", so
 # the main pass has to resolve zlib to the same copy gRPC was built against
 # rather than to whichever one the SDK happens to offer.
 set(ZLIB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib)
+
+# zlib's CMake builds libz.a and libz.dylib both, and FindZLIB prefers the
+# shared one. That is fatal here rather than merely untidy: the result is a HAL
+# bundle with an @rpath dependency on a dylib in the build tree, which
+# coreaudiod's sandboxed helper cannot read (errno=13) and which is not inside
+# the bundle to begin with, so the plug-in fails to dlopen. Everything else this
+# project links is static for the same reason.
+set(ZLIB_USE_STATIC_LIBS ON)
 
 # gRPC 1.63 predates clang making missing-template-arg-list-after-template-kw an
 # error by default, so basic_seq.h stops compiling under any sufficiently recent
@@ -241,6 +250,12 @@ ExternalProject_Add(zlib_lib
     -DZLIB_BUILD_EXAMPLES=OFF
   BUILD_COMMAND
     ${CMAKE_COMMAND} --build . -- -j ${NUM_CPU}
+  # zlib installs the shared library unconditionally; deleting it afterwards
+  # leaves nothing for a stray find_package to pick up.
+  INSTALL_COMMAND
+    ${CMAKE_COMMAND} --build . --target install
+  COMMAND
+    sh -c "rm -f <INSTALL_DIR>/lib/libz*.dylib"
   LOG_DOWNLOAD ${ENABLE_LOGS}
   LOG_CONFIGURE ${ENABLE_LOGS}
   LOG_BUILD ${ENABLE_LOGS}

@@ -48,6 +48,11 @@ install:
 	cp bin/roc-vad $(DESTDIR)/usr/local/bin/
 	mkdir -p $(DESTDIR)/Library/Audio/Plug-Ins/HAL/
 	cp -a bin/roc_vad.driver $(DESTDIR)/Library/Audio/Plug-Ins/HAL/
+# AMFI refuses to load an unsigned HAL plug-in ("Unrecoverable CT signature
+# issue"). An ad-hoc signature is enough for a locally built driver; a
+# Developer ID is only needed to ship it to another machine.
+	codesign --force --sign - \
+		$(DESTDIR)/Library/Audio/Plug-Ins/HAL/roc_vad.driver
 
 uninstall:
 	rm -f $(DESTDIR)/usr/local/bin/roc-vad
