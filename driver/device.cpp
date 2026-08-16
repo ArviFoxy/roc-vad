@@ -223,8 +223,12 @@ Device::Device(std::shared_ptr<aspl::Plugin> hal_plugin,
     hal_stream->AttachMuteControl(hal_device_->AddMuteControlAsync(volume_scope));
 
     // create HAL request handler
-    req_handler_ = std::make_shared<RequestHandler>(
-        info_.uid, info_.device_encoding, net_transceiver_, volume_control);
+    req_handler_ = std::make_shared<RequestHandler>(info_.uid,
+        info_.device_encoding,
+        net_transceiver_,
+        [volume_control] {
+            return volume_scalar_to_gain(volume_control->GetScalarValue());
+        });
     // register handler
     hal_device_->SetControlHandler(req_handler_);
     hal_device_->SetIOHandler(req_handler_);

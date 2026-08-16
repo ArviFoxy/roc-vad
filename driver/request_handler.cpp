@@ -7,35 +7,35 @@
  */
 
 #include "request_handler.hpp"
-#include "volume_control.hpp"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cassert>
+#include <utility>
 
 namespace rocvad {
 
 RequestHandler::RequestHandler(const std::string& device_uid,
     const DeviceLocalEncoding& device_encoding,
     std::shared_ptr<Transceiver> net_transceiver,
-    std::shared_ptr<aspl::VolumeControl> volume_control)
+    std::function<float()> volume_gain)
     : device_uid_(device_uid)
     , chan_count_(device_encoding.channel_count)
     , net_transceiver_(net_transceiver)
-    , volume_control_(volume_control)
+    , volume_gain_(std::move(volume_gain))
     , ring_buf_(device_encoding.buffer_samples * device_encoding.channel_count)
     , io_buf_(device_encoding.buffer_samples * device_encoding.channel_count)
 {
     assert(net_transceiver_);
-    assert(volume_control_);
+    assert(volume_gain_);
 }
 
-// Realtime safe: the control's raw value is an atomic, and the curve is a
-// handful of arithmetic ops evaluated once per buffer rather than per sample.
+// Realtime safe: the callable reads an atomic and does a handful of arithmetic
+// ops, and it is evaluated once per buffer rather than per sample.
 void RequestHandler::apply_volume_(float* samples, size_t sample_cnt) const
 {
-    const float gain = volume_scalar_to_gain(volume_control_->GetScalarValue());
+    const float gain = volume_gain_();
 
     if (gain == 1.0f) {
         return;
