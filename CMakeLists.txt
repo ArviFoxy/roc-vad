@@ -100,6 +100,17 @@ if(NOT BOOTSTRAP)
     add_dependencies(${TARGET} ${RPC_LIB})
   endforeach()
 
+  # roc is linked by bare name through link_directories, so CMake has no
+  # file-level dependency on libroc.a and would not relink when roc-toolkit is
+  # rebuilt. Header changes happen to force a recompile, but a change confined to
+  # roc's .cpp files does not, and the binaries then keep the previous library
+  # without any sign of it. LINK_DEPENDS adds the missing dependency and leaves
+  # the link line alone.
+  foreach(TARGET IN ITEMS ${DRIVER_BUNDLE_NAME} ${TOOL_EXE} ${TEST_EXE})
+    set_property(TARGET ${TARGET} APPEND PROPERTY
+      LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/roc/lib/libroc.a)
+  endforeach()
+
   add_custom_command(
     COMMENT "Copying compile_commands.json to project root"
     DEPENDS

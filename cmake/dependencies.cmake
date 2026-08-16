@@ -148,7 +148,14 @@ ExternalProject_Add(roc_lib
   GIT_TAG "${ROC_TAG}"
   GIT_SHALLOW OFF
   GIT_PROGRESS ON
-  UPDATE_DISCONNECTED ON
+  # The one dependency that is not pinned to a tag. ROC_TAG defaults to a branch
+  # that is actively developed, so leaving the clone disconnected means a build
+  # silently keeps whatever was fetched the first time and no later commit ever
+  # arrives. Every other dependency here is a fixed tag or commit and stays
+  # disconnected, where re-fetching would only cost time. The price is that a
+  # build now needs the network to reach the roc remote; pass
+  # -DROC_TAG=<sha> to pin it if that is a problem.
+  UPDATE_DISCONNECTED OFF
   PREFIX ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/roc
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ${SCONS_CMD}
