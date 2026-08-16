@@ -31,7 +31,60 @@ foreach(TOOL IN LISTS TOOL_LIST)
   endif()
 endforeach()
 
+# ExternalProject sub-builds start a fresh CMake, which does not inherit the
+# toolchain from this one. Without forwarding it they configure with the host
+# compiler while still being handed CMAKE_OSX_ARCHITECTURES, which fails
+# outright when cross-compiling and silently produces host binaries when it
+# does not. Expands to nothing for a native macOS build.
+if(CMAKE_TOOLCHAIN_FILE)
+  set(DEP_TOOLCHAIN_ARG -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
+endif()
+
+# Several dependencies still declare cmake_minimum_required below 3.5, which
+# CMake 4.x refuses outright: "Compatibility with CMake < 3.5 has been removed
+# from CMake". libASPL v3.1.1 is the first to hit it. Nothing to do with
+# cross-compiling — a native build with CMake 4 fails the same way.
+# roc-toolkit already passes this to its own sub-builds.
+set(DEP_POLICY_ARG -DCMAKE_POLICY_VERSION_MINIMUM=3.5)
+
+# A cross toolchain sets CMAKE_FIND_ROOT_PATH_MODE_{LIBRARY,INCLUDE,PACKAGE} to
+# ONLY, so find_package and friends look only inside the SDK root and cannot
+# see the dependencies we just cross-built into 3rdparty/. Adding those
+# prefixes to the find root is the standard way to make cross-built deps
+# discoverable — without it gRPC fails with "Could NOT find OpenSSL" despite
+# being handed OPENSSL_ROOT_DIR, and the main build would then fail the same
+# way looking for libASPL and gRPC.
+if(CMAKE_TOOLCHAIN_FILE)
+  foreach(DEP roc aspl boringssl zlib grpc fmt spdlog cli11 googletest)
+    list(APPEND CMAKE_FIND_ROOT_PATH ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/${DEP})
+  endforeach()
+endif()
+
+# roc-toolkit builds under scons rather than CMake, so it needs telling
+# separately. Its SConstruct exposes --host for exactly this; without it scons
+# picks the native compiler and quietly emits a host-architecture libroc.a
+# that links nowhere useful.
+set(SCONS_HOST "" CACHE STRING
+  "Target triple passed to roc-toolkit's scons --host (empty = native build)")
+if(SCONS_HOST)
+  set(SCONS_HOST_ARG --host=${SCONS_HOST})
+endif()
+
+# Which third-party libraries roc builds for itself, and optionally at which
+# versions ("all" or e.g. "all,libuv:1.51.0"). roc's default libuv is 1.35.0,
+# from 2020, which cannot compile against a modern macOS SDK: it defines strict
+# _POSIX_C_SOURCE, so the SDK headers hide the BSD types and socket constants
+# it then goes on to use — u_int, IP_TTL, IP_MULTICAST_TTL and friends all come
+# back undeclared.
+set(ROC_3RDPARTY "all" CACHE STRING
+  "Value passed to roc-toolkit's scons --build-3rdparty")
+
 # Roc
+set(ROC_SOURCE "file:///home/arvi/roc-toolkit"
+  CACHE STRING "roc-toolkit git repository (URL or local path)")
+set(ROC_TAG "2bf2aabd"
+  CACHE STRING "roc-toolkit git tag/branch/commit")
+
 set(SCONS_CMD
   scons -j ${NUM_CPU}
     -C ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/roc/src/roc_lib
@@ -41,14 +94,23 @@ set(SCONS_CMD
     --disable-tools
     --disable-sox
     --disable-openssl
-    --build-3rdparty=all
+    --build-3rdparty=${ROC_3RDPARTY}
     --compiler-launcher=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${SCONS_HOST_ARG}
     --macos-platform=${CMAKE_OSX_DEPLOYMENT_TARGET}
     --macos-arch=${OSX_ARCHITECTURES_COMMA}
 )
+# Local fork rather than upstream: the server's receivers run this tree, and
+# upstream's "master" is a moving target that can change the build underneath
+# us. Pinned to a commit for that second reason as much as the first — the
+# fork's own changes (Prometheus metrics, latency tuner) are receiver-side, so
+# a sender built from upstream would very likely interoperate anyway.
+#
+# ROC_SOURCE / ROC_TAG are overridable so a CI or clean-room build can still
+# point at a URL instead of this machine's filesystem.
 ExternalProject_Add(roc_lib
-  GIT_REPOSITORY "https://github.com/roc-streaming/roc-toolkit.git"
-  GIT_TAG "master"
+  GIT_REPOSITORY "${ROC_SOURCE}"
+  GIT_TAG "${ROC_TAG}"
   GIT_SHALLOW OFF
   GIT_PROGRESS ON
   UPDATE_DISCONNECTED ON
@@ -79,6 +141,8 @@ ExternalProject_Add(aspl_lib
   LIST_SEPARATOR ${LIST_SEPARATOR}
   CMAKE_ARGS
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -107,6 +171,8 @@ ExternalProject_Add(boringssl_lib
   LIST_SEPARATOR ${LIST_SEPARATOR}
   CMAKE_ARGS
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -125,6 +191,42 @@ list(PREPEND CMAKE_PREFIX_PATH
   ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/boringssl/lib/cmake
 )
 
+# zlib
+# gRPC vendors a very old zlib whose zutil.h keys off TARGET_OS_MAC and decides
+# it is building for classic Mac OS: it sets OS_CODE 7 and defines
+# "fdopen(fd,mode) NULL", which then makes Apple's own <stdio.h> fail to parse.
+# The same copy also passes -msse4.1 on arm64. Building a modern zlib ourselves
+# and pointing gRPC at it with gRPC_ZLIB_PROVIDER=package avoids both.
+ExternalProject_Add(zlib_lib
+  GIT_REPOSITORY "https://github.com/madler/zlib.git"
+  GIT_TAG "v1.3.1"
+  GIT_SHALLOW ON
+  GIT_PROGRESS ON
+  UPDATE_DISCONNECTED ON
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib
+  LIST_SEPARATOR ${LIST_SEPARATOR}
+  CMAKE_ARGS
+    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
+    -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
+    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+    -DZLIB_BUILD_EXAMPLES=OFF
+  BUILD_COMMAND
+    ${CMAKE_COMMAND} --build . -- -j ${NUM_CPU}
+  LOG_DOWNLOAD ${ENABLE_LOGS}
+  LOG_CONFIGURE ${ENABLE_LOGS}
+  LOG_BUILD ${ENABLE_LOGS}
+  LOG_INSTALL ${ENABLE_LOGS}
+)
+include_directories(SYSTEM
+  ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib/include
+)
+list(PREPEND CMAKE_PREFIX_PATH
+  ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib/lib/cmake
+)
+
 # gRPC
 ExternalProject_Add(grpc_lib
   GIT_REPOSITORY "https://github.com/grpc/grpc.git"
@@ -136,6 +238,8 @@ ExternalProject_Add(grpc_lib
   LIST_SEPARATOR ${LIST_SEPARATOR}
   CMAKE_ARGS
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -151,8 +255,13 @@ ExternalProject_Add(grpc_lib
     -DgRPC_BUILD_GRPC_PYTHON_PLUGIN=OFF
     -DgRPC_BUILD_GRPC_RUBY_PLUGIN=OFF
     -DgRPC_SSL_PROVIDER=package
+    -DgRPC_ZLIB_PROVIDER=package
+    -DZLIB_ROOT=${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib
     -DOPENSSL_ROOT_DIR=${CMAKE_CURRENT_BINARY_DIR}/3rdparty/boringssl
     -DOPENSSL_USE_STATIC_LIBS=ON
+    # cross toolchains restrict find_* to the SDK root; BoringSSL lives outside
+    # it, so OPENSSL_ROOT_DIR alone is not enough to make FindOpenSSL see it
+    -DCMAKE_FIND_ROOT_PATH=${CMAKE_CURRENT_BINARY_DIR}/3rdparty/boringssl${LIST_SEPARATOR}${CMAKE_CURRENT_BINARY_DIR}/3rdparty/zlib
   BUILD_COMMAND
     ${CMAKE_COMMAND} --build . -- -j ${NUM_CPU}
   LOG_DOWNLOAD ${ENABLE_LOGS}
@@ -182,6 +291,8 @@ ExternalProject_Add(fmt_lib
   LIST_SEPARATOR ${LIST_SEPARATOR}
   CMAKE_ARGS
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -214,6 +325,8 @@ ExternalProject_Add(spdlog_lib
   LIST_SEPARATOR ${LIST_SEPARATOR}
   CMAKE_ARGS
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -248,6 +361,8 @@ ExternalProject_Add(cli11_lib
   LIST_SEPARATOR ${LIST_SEPARATOR}
   CMAKE_ARGS
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -277,6 +392,8 @@ ExternalProject_Add(googletest_lib
   LIST_SEPARATOR ${LIST_SEPARATOR}
   CMAKE_ARGS
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    ${DEP_TOOLCHAIN_ARG}
+    ${DEP_POLICY_ARG}
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -300,6 +417,7 @@ set(ALL_DEPENDENCIES
   roc_lib
   aspl_lib
   boringssl_lib
+  zlib_lib
   grpc_lib
   fmt_lib
   spdlog_lib
