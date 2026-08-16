@@ -60,6 +60,18 @@ struct DevicePacketEncoding
 };
 
 // Network parameters of sender device.
+// Per-slot parameters of a sender device (multiroom).
+struct DeviceSlotConfig
+{
+    uint64_t slot = ROC_SLOT_DEFAULT;
+
+    // Input track list in roc syntax ("3", "0,2", "0-2"); empty = all tracks.
+    std::string tracks;
+
+    // Metrics label value attached as "slot" label; empty = no label.
+    std::string name;
+};
+
 struct DeviceSenderConfig
 {
     std::optional<DevicePacketEncoding> packet_encoding;
@@ -80,6 +92,9 @@ struct DeviceSenderConfig
 
     // roc_context_config limit; 0 leaves roc's default in place.
     uint32_t max_packet_size = 0;
+
+    // Per-slot parameters; slots not listed use defaults.
+    std::vector<DeviceSlotConfig> slots;
 };
 
 // Network parameters of sender device.
@@ -106,7 +121,7 @@ struct DeviceReceiverConfig
 // Device endpoint info.
 struct DeviceEndpointInfo
 {
-    uint32_t slot = ROC_SLOT_DEFAULT;
+    uint64_t slot = ROC_SLOT_DEFAULT;
 
     roc_interface interface = (roc_interface)-1;
     std::string uri = {};

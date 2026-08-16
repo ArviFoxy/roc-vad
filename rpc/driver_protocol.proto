@@ -195,6 +195,11 @@ message RvEndpointRequest
 
     // New local or remote endpoint to be bound or connected.
     RvEndpointInfo endpoint = 2;
+
+    // Optional parameters of the endpoint's slot (sender devices only).
+    // Applied before the endpoint is connected; valid only for a slot that
+    // has no endpoints yet.
+    optional RvSenderSlotConfig slot_config = 3;
 }
 
 // Endpoint description.
@@ -208,7 +213,7 @@ message RvEndpointInfo
     // created automatically if it does not exist yet.
     // When retrieving endpoint info, always present.
     // When sending endpoint info, keep unset to use default slot (0).
-    optional uint32 slot = 1;
+    optional uint64 slot = 1;
 
     // Interface to which this endpoint attached.
     // Interface defines type of data transferred via endpoint, and list of allowed
@@ -287,6 +292,29 @@ message RvSenderConfig
     // Limits how much audio roc puts in one packet, so it can be kept under
     // the path MTU. Keep unset to use roc's default.
     optional uint32 max_packet_size = 14;
+
+    // Per-slot parameters (multiroom track selection, metrics label).
+    // Slots not listed here use defaults. Duplicate entries for one slot are
+    // tolerated on load: the first entry wins.
+    repeated RvSenderSlotConfig slots = 15;
+}
+
+// Per-slot parameters of a sender device.
+message RvSenderSlotConfig
+{
+    // Slot index the settings apply to.
+    // Keep unset for default slot (0).
+    optional uint64 slot = 1;
+
+    // Input track(s) this slot sends, in roc track-list syntax:
+    // "3", "0,2", or "0-2". Requires a multitrack device encoding; the
+    // selected track count must equal the packet encoding channel count.
+    // Keep unset to send all tracks.
+    optional string tracks = 2;
+
+    // Slot name, attached as "slot" label to metrics exported by the slot.
+    // Keep unset for no label.
+    optional string name = 3;
 }
 
 // Parameters of receiver device.

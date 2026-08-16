@@ -256,6 +256,36 @@ void device_info_from_rpc(DeviceInfo& out, const rvpb::RvDeviceInfo& in)
                 nanoseconds_from_rpc("RvSenderConfig.latency_tolerance",
                     in.sender_config().latency_tolerance());
         }
+
+        // slots
+        // Lenient on purpose: this path also runs when loading the persisted
+        // device list, where a throw discards every stored device. Duplicate
+        // slot entries are skipped (first wins); track syntax is validated
+        // later, when the device is built.
+        for (const auto& in_slot : in.sender_config().slots()) {
+            DeviceSlotConfig out_slot;
+
+            if (in_slot.has_slot()) {
+                out_slot.slot = in_slot.slot();
+            }
+            if (in_slot.has_tracks()) {
+                out_slot.tracks = in_slot.tracks();
+            }
+            if (in_slot.has_name()) {
+                out_slot.name = in_slot.name();
+            }
+
+            bool duplicate = false;
+            for (const auto& prev_slot : out.sender_config->slots) {
+                if (prev_slot.slot == out_slot.slot) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (!duplicate) {
+                out.sender_config->slots.push_back(out_slot);
+            }
+        }
     }
 
     // receiver_config
@@ -442,6 +472,20 @@ void device_info_to_rpc(rvpb::RvDeviceInfo& out, const DeviceInfo& in)
         // latency_tolerance
         *out.mutable_sender_config()->mutable_latency_tolerance() = nanoseconds_to_rpc(
             "RvSenderConfig.latency_tolerance", in.sender_config->latency_tolerance_ns);
+
+        // slots
+        for (const auto& in_slot : in.sender_config->slots) {
+            rvpb::RvSenderSlotConfig* out_slot =
+                out.mutable_sender_config()->add_slots();
+
+            out_slot->set_slot(in_slot.slot);
+            if (!in_slot.tracks.empty()) {
+                out_slot->set_tracks(in_slot.tracks);
+            }
+            if (!in_slot.name.empty()) {
+                out_slot->set_name(in_slot.name);
+            }
+        }
     }
 
     // receiver_config
