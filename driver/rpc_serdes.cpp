@@ -188,12 +188,6 @@ void device_info_from_rpc(DeviceInfo& out, const rvpb::RvDeviceInfo& in)
                 "RvSenderConfig.packet_length", in.sender_config().packet_length());
         }
 
-        // packet_interleaving
-        if (in.sender_config().has_packet_interleaving()) {
-            out.sender_config->packet_interleaving =
-                in.sender_config().packet_interleaving();
-        }
-
         // fec_encoding
         if (in.sender_config().has_fec_encoding()) {
             out.sender_config->fec_encoding = enum_from_rpc("RvSenderConfig.fec_encoding",
@@ -388,10 +382,6 @@ void device_info_to_rpc(rvpb::RvDeviceInfo& out, const DeviceInfo& in)
         // packet_length
         *out.mutable_sender_config()->mutable_packet_length() = nanoseconds_to_rpc(
             "RvSenderConfig.packet_length", in.sender_config->packet_length_ns);
-
-        // packet_interleaving
-        out.mutable_sender_config()->set_packet_interleaving(
-            in.sender_config->packet_interleaving);
 
         // fec_encoding
         out.mutable_sender_config()->set_fec_encoding(

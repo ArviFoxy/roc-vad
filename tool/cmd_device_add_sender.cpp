@@ -55,9 +55,6 @@ CmdDeviceAddSender::CmdDeviceAddSender(CLI::App& parent)
         packet_length_,
         fmt::format("Packet length (number with one of the suffixes: {})",
             supported_duration_suffixes()));
-    packet_encoding_opts->add_flag(
-        "--packet-interleaving", packet_interleaving_, "Packet interleaving flag");
-
     packet_encoding_opts->add_option("--packet-encoding-id",
         packet_encoding_id_,
         "Unique identifier to use for packet encoding");
@@ -200,9 +197,6 @@ bool CmdDeviceAddSender::execute(const Environment& env)
                 *request.mutable_sender_config()->mutable_packet_length())) {
             return false;
         }
-    }
-    if (packet_interleaving_) {
-        request.mutable_sender_config()->set_packet_interleaving(*packet_interleaving_);
     }
     if (packet_encoding_id_) {
         request.mutable_sender_config()->mutable_packet_encoding()->set_encoding_id(

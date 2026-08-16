@@ -11,7 +11,7 @@
 namespace rocvad {
 
 enum_map<rvpb::RvInterface, roc_interface> interface_map {
-    {rvpb::RV_INTERFACE_CONSOLIDATED, ROC_INTERFACE_CONSOLIDATED, "consolidated"},
+    {rvpb::RV_INTERFACE_CONSOLIDATED, ROC_INTERFACE_AGGREGATE, "consolidated"},
     {rvpb::RV_INTERFACE_AUDIO_SOURCE, ROC_INTERFACE_AUDIO_SOURCE, "audiosrc"},
     {rvpb::RV_INTERFACE_AUDIO_REPAIR, ROC_INTERFACE_AUDIO_REPAIR, "audiorpr"},
     {rvpb::RV_INTERFACE_AUDIO_CONTROL, ROC_INTERFACE_AUDIO_CONTROL, "audioctl"},

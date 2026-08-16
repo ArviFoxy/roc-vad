@@ -60,7 +60,6 @@ Sender::Sender(const std::string& device_uid,
     }
 
     net_sender_config.packet_length = device_sender_config.packet_length_ns;
-    net_sender_config.packet_interleaving = device_sender_config.packet_interleaving;
 
     net_sender_config.fec_encoding = device_sender_config.fec_encoding;
     net_sender_config.fec_block_source_packets =

@@ -236,9 +236,12 @@ message RvSenderConfig
     // Keep unset to use default.
     optional google.protobuf.Duration packet_length = 2;
 
-    // Enable packet interleaving.
-    // Keep unset to use default.
-    optional bool packet_interleaving = 3;
+    // Tag 3 was packet_interleaving. roc removed it from its C API because
+    // "it never worked properly", so there is nothing left to forward it to.
+    // Reserved rather than deleted, so the tag is never reused and an old
+    // client setting it is ignored instead of silently misread.
+    reserved 3;
+    reserved "packet_interleaving";
 
     // Forward Error Correction encoding.
     // Keep unset to use default.

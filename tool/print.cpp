@@ -61,8 +61,6 @@ void print_device_info(const rvpb::RvDeviceInfo& device_info)
 
         fmt::println("    packet_length:        {}",
             format_duration(device_info.sender_config().packet_length()));
-        fmt::println("    packet_interleaving:  {}",
-            device_info.sender_config().packet_interleaving());
 
         if (device_info.sender_config().has_packet_encoding()) {
             print_packet_encoding(device_info.sender_config().packet_encoding());
