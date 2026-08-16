@@ -117,7 +117,7 @@ set(ROC_3RDPARTY "all" CACHE STRING
 # Roc
 set(ROC_SOURCE "https://github.com/ArviFoxy/roc-toolkit.git"
   CACHE STRING "roc-toolkit git repository (URL or local path)")
-set(ROC_TAG "deploy"
+set(ROC_TAG "multiroom"
   CACHE STRING "roc-toolkit git tag/branch/commit")
 
 set(SCONS_CMD
