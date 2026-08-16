@@ -222,12 +222,12 @@ struct MultiroomRequestHandlerTest : testing::Test
 {
     static constexpr size_t sample_rate = 44100;
     static constexpr size_t track_count = 2;
-    static constexpr roc_packet_encoding mono_encoding_id = (roc_packet_encoding)100;
+    static constexpr int mono_encoding_id = 100;
 
     static DevicePacketEncoding mono_packet_encoding()
     {
         DevicePacketEncoding encoding;
-        encoding.id = mono_encoding_id;
+        encoding.id = (roc_packet_encoding)mono_encoding_id;
         encoding.spec.format = ROC_FORMAT_PCM;
         encoding.spec.subformat = ROC_SUBFORMAT_PCM_SINT16;
         encoding.spec.rate = sample_rate;
@@ -286,7 +286,7 @@ struct MultiroomRequestHandlerTest : testing::Test
     {
         return DeviceInfo {
             .type = DeviceType::Receiver,
-            .index = 2 + leg,
+            .index = (uint32_t)(2 + leg),
             .uid = "test_mroom_receiver_" + std::to_string(leg),
             .name = "test_mroom_receiver_" + std::to_string(leg),
             .enabled = true,
