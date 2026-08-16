@@ -254,47 +254,57 @@ list(PREPEND CMAKE_PREFIX_PATH
 )
 
 # abseil
-# gRPC 1.63 vendors abseil 20240116.0, whose CMake emits
-# "-Xarch_x86_64 -maes -Xarch_x86_64 -msse4.1" for randen_hwaes. CMake
-# de-duplicates repeated compile options, collapsing that to
-# "-Xarch_x86_64 -maes -msse4.1" — and since -Xarch_ guards only the argument
-# that follows it, -msse4.1 leaks onto the arm64 compile and clang rejects it.
-# Abseil fixed this in 20240722 ("Fixup absl_random compile breakage in Apple
-# ARM64 targets") by using CMake's SHELL: prefix, which keeps the pair together
-# and exempt from de-duplication. 20240722.2 is the next LTS after the version
-# gRPC expects, so it is the smallest jump that carries the fix.
-ExternalProject_Add(absl_lib
-  GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
-  GIT_TAG "20240722.2"
-  GIT_SHALLOW ON
-  GIT_PROGRESS ON
-  UPDATE_DISCONNECTED ON
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl
-  LIST_SEPARATOR ${LIST_SEPARATOR}
-  CMAKE_ARGS
-    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-    ${DEP_TOOLCHAIN_ARG}
-    ${DEP_POLICY_ARG}
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
-    -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
-    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-    -DCMAKE_CXX_STANDARD=17
-    -DABSL_PROPAGATE_CXX_STD=ON
-    -DABSL_ENABLE_INSTALL=ON
-    -DBUILD_TESTING=OFF
-  BUILD_COMMAND
-    ${CMAKE_COMMAND} --build . -- -j ${NUM_CPU}
-  LOG_DOWNLOAD ${ENABLE_LOGS}
-  LOG_CONFIGURE ${ENABLE_LOGS}
-  LOG_BUILD ${ENABLE_LOGS}
-  LOG_INSTALL ${ENABLE_LOGS}
-)
-include_directories(SYSTEM
-  ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl/include
-)
-list(PREPEND CMAKE_PREFIX_PATH
-  ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl/lib/cmake
-)
+# Cross-compiling only. Natively, gRPC builds and installs its own vendored
+# abseil (gRPC_ABSL_PROVIDER defaults to "module"), and injecting a second,
+# newer copy ahead of it on the include path is an ODR trap rather than a
+# convenience: abseil puts its version in an inline namespace, so roc-vad's
+# sources compile against absl::lts_20240722 while gRPC's libraries export
+# absl::lts_20240116, and every absl symbol comes up undefined at link time.
+# The version skew below is deliberate and only safe when it applies to gRPC
+# too, which is exactly when gRPC_ABSL_PROVIDER=package is passed.
+if(CMAKE_TOOLCHAIN_FILE)
+  # gRPC 1.63 vendors abseil 20240116.0, whose CMake emits
+  # "-Xarch_x86_64 -maes -Xarch_x86_64 -msse4.1" for randen_hwaes. CMake
+  # de-duplicates repeated compile options, collapsing that to
+  # "-Xarch_x86_64 -maes -msse4.1" — and since -Xarch_ guards only the argument
+  # that follows it, -msse4.1 leaks onto the arm64 compile and clang rejects it.
+  # Abseil fixed this in 20240722 ("Fixup absl_random compile breakage in Apple
+  # ARM64 targets") by using CMake's SHELL: prefix, which keeps the pair together
+  # and exempt from de-duplication. 20240722.2 is the next LTS after the version
+  # gRPC expects, so it is the smallest jump that carries the fix.
+  ExternalProject_Add(absl_lib
+    GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
+    GIT_TAG "20240722.2"
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
+    UPDATE_DISCONNECTED ON
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl
+    LIST_SEPARATOR ${LIST_SEPARATOR}
+    CMAKE_ARGS
+      -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+      ${DEP_TOOLCHAIN_ARG}
+      ${DEP_POLICY_ARG}
+      -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
+      -DCMAKE_OSX_ARCHITECTURES=${OSX_ARCHITECTURES_LISTSEP}
+      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+      -DCMAKE_CXX_STANDARD=17
+      -DABSL_PROPAGATE_CXX_STD=ON
+      -DABSL_ENABLE_INSTALL=ON
+      -DBUILD_TESTING=OFF
+    BUILD_COMMAND
+      ${CMAKE_COMMAND} --build . -- -j ${NUM_CPU}
+    LOG_DOWNLOAD ${ENABLE_LOGS}
+    LOG_CONFIGURE ${ENABLE_LOGS}
+    LOG_BUILD ${ENABLE_LOGS}
+    LOG_INSTALL ${ENABLE_LOGS}
+  )
+  include_directories(SYSTEM
+    ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl/include
+  )
+  list(PREPEND CMAKE_PREFIX_PATH
+    ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/absl/lib/cmake
+  )
+endif()
 
 # gRPC
 ExternalProject_Add(grpc_lib
