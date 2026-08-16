@@ -70,16 +70,40 @@ if(NOT BOOTSTRAP)
   add_subdirectory(tool)
   add_subdirectory(test)
 
-  foreach(TARGET IN ITEMS ${COMMON_LIB} ${RPC_LIB} ${DRIVER_BUNDLE} ${TOOL_EXE} ${TEST_EXE})
+  # Everything we build. The intermediate static libraries belong here as much
+  # as the final artifacts: they include headers from the third-party tree and
+  # from protoc, and a parallel build will start compiling them before either
+  # exists unless told not to. ${DRIVER_BUNDLE_NAME}, not ${DRIVER_BUNDLE} —
+  # the latter is not set anywhere, so it silently expanded to nothing.
+  set(OUR_TARGETS
+    ${COMMON_LIB}
+    ${RPC_LIB}
+    ${DRIVER_LIB}
+    ${DRIVER_BUNDLE_NAME}
+    ${TOOL_LIB}
+    ${TOOL_EXE}
+    ${TEST_EXE}
+  )
+
+  foreach(TARGET IN ITEMS ${OUR_TARGETS})
     add_dependencies(${TARGET}
       ${ALL_DEPENDENCIES}
     )
   endforeach()
 
+  # ${RPC_LIB} is the target that runs protoc, and the headers it generates go
+  # into the source tree. Only the final executables link it, so the static
+  # libraries have to be told to wait: otherwise they compile against the
+  # previous run's headers, and every field the proto just gained comes back as
+  # "no member named ...".
+  foreach(TARGET IN ITEMS ${COMMON_LIB} ${DRIVER_LIB} ${TOOL_LIB})
+    add_dependencies(${TARGET} ${RPC_LIB})
+  endforeach()
+
   add_custom_command(
     COMMENT "Copying compile_commands.json to project root"
     DEPENDS
-      ${COMMON_LIB} ${RPC_LIB} ${DRIVER_BUNDLE} ${TOOL_EXE} ${TEST_EXE}
+      ${OUR_TARGETS}
     OUTPUT
       ${PROJECT_SOURCE_DIR}/compile_commands.json
     COMMAND ${CMAKE_COMMAND} -E copy
