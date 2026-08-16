@@ -157,12 +157,18 @@ grpc::Status DriverService::connect(grpc::ServerContext* context,
         DeviceEndpointInfo endpoint_info;
         endpoint_info_from_rpc(endpoint_info, request->endpoint());
 
+        std::optional<DeviceSlotConfig> slot_config;
+        if (request->has_slot_config()) {
+            slot_config.emplace();
+            slot_config_from_rpc(*slot_config, request->slot_config());
+        }
+
         if (request->device().has_index()) {
-            endpoint_info =
-                device_manager_->connect_device(request->device().index(), endpoint_info);
+            endpoint_info = device_manager_->connect_device(
+                request->device().index(), endpoint_info, slot_config);
         } else {
-            endpoint_info =
-                device_manager_->connect_device(request->device().uid(), endpoint_info);
+            endpoint_info = device_manager_->connect_device(
+                request->device().uid(), endpoint_info, slot_config);
         }
 
         endpoint_info_to_rpc(*response, endpoint_info);

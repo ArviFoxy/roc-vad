@@ -273,8 +273,39 @@ DeviceEndpointInfo Device::bind(DeviceEndpointInfo endpoint_info)
     return endpoint_info;
 }
 
-DeviceEndpointInfo Device::connect(DeviceEndpointInfo endpoint_info)
+DeviceEndpointInfo Device::connect(DeviceEndpointInfo endpoint_info,
+    const std::optional<DeviceSlotConfig>& slot_config)
 {
+    if (slot_config) {
+        if (!info_.sender_config) {
+            throw std::invalid_argument(
+                fmt::format("device {} is not a sender, can't configure slot",
+                    info_.uid));
+        }
+        if (slot_config->slot != endpoint_info.slot) {
+            throw std::invalid_argument(
+                fmt::format("slot config slot {} does not match endpoint slot {}",
+                    slot_config->slot,
+                    endpoint_info.slot));
+        }
+        for (const auto& endpoint : info_.remote_endpoints) {
+            if (endpoint.slot == endpoint_info.slot) {
+                throw std::invalid_argument(fmt::format(
+                    "slot {} already has endpoints, can't configure it",
+                    endpoint_info.slot));
+            }
+        }
+        for (const auto& prev_slot : info_.sender_config->slots) {
+            if (prev_slot.slot == slot_config->slot) {
+                throw std::invalid_argument(fmt::format(
+                    "slot {} is already configured", slot_config->slot));
+            }
+        }
+
+        net_transceiver_->configure_slot(*slot_config);
+        info_.sender_config->slots.push_back(*slot_config);
+    }
+
     // may modify endpoint_info
     connect_endpoint_(endpoint_info);
 

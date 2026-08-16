@@ -36,6 +36,9 @@ private:
 
     std::optional<uint32_t> slot_;
 
+    std::optional<std::string> track_;
+    std::optional<std::string> slot_name_;
+
     std::optional<std::string> source_endpoint_;
     std::optional<std::string> repair_endpoint_;
     std::optional<std::string> control_endpoint_;

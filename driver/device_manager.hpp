@@ -53,9 +53,12 @@ public:
     DeviceEndpointInfo bind_device(index_t index, DeviceEndpointInfo endpoint);
     DeviceEndpointInfo bind_device(const std::string& uid, DeviceEndpointInfo endpoint);
 
-    DeviceEndpointInfo connect_device(index_t index, DeviceEndpointInfo endpoint);
+    DeviceEndpointInfo connect_device(index_t index,
+        DeviceEndpointInfo endpoint,
+        const std::optional<DeviceSlotConfig>& slot_config = std::nullopt);
     DeviceEndpointInfo connect_device(const std::string& uid,
-        DeviceEndpointInfo endpoint);
+        DeviceEndpointInfo endpoint,
+        const std::optional<DeviceSlotConfig>& slot_config = std::nullopt);
 
 private:
     std::shared_ptr<Device> find_device_(index_t index);

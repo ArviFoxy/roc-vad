@@ -26,6 +26,8 @@ public:
     void bind(DeviceEndpointInfo& endpoint_info) override;
     void connect(DeviceEndpointInfo& endpoint_info) override;
 
+    void configure_slot(const DeviceSlotConfig& slot_config) override;
+
     void pause() noexcept override;
     void resume() noexcept override;
 

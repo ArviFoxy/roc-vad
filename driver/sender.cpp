@@ -16,6 +16,54 @@
 
 namespace rocvad {
 
+
+namespace {
+
+// Parses roc track-list syntax ("3", "0,2", "0-2") into a roc_slot_config
+// track bitmask. Tracks above 63 can't be expressed in the mask.
+bool parse_track_mask(const std::string& str, unsigned long long& mask)
+{
+    mask = 0;
+
+    size_t pos = 0;
+    while (pos < str.size()) {
+        char* end = nullptr;
+        const unsigned long first = std::strtoul(str.c_str() + pos, &end, 10);
+        if (end == str.c_str() + pos || first > 63) {
+            return false;
+        }
+        pos = size_t(end - str.c_str());
+
+        unsigned long last = first;
+        if (pos < str.size() && str[pos] == '-') {
+            pos++;
+            last = std::strtoul(str.c_str() + pos, &end, 10);
+            if (end == str.c_str() + pos || last > 63 || last < first) {
+                return false;
+            }
+            pos = size_t(end - str.c_str());
+        }
+
+        for (unsigned long track = first; track <= last; track++) {
+            mask |= (1ull << track);
+        }
+
+        if (pos < str.size()) {
+            if (str[pos] != ',') {
+                return false;
+            }
+            pos++;
+            if (pos == str.size()) {
+                return false;
+            }
+        }
+    }
+
+    return mask != 0;
+}
+
+} // namespace
+
 Sender::Sender(const std::string& device_uid,
     const DeviceLocalEncoding& device_encoding,
     const DeviceSenderConfig& device_sender_config)
@@ -86,6 +134,12 @@ Sender::Sender(const std::string& device_uid,
         throw std::invalid_argument(
             fmt::format("invalid sender config: uid={} err={}", device_uid_, err));
     }
+
+    // Per-slot parameters must be applied before the endpoint replay
+    // that Device performs after constructing the sender.
+    for (const auto& slot_config : device_sender_config.slots) {
+        configure_slot(slot_config);
+    }
 }
 
 Sender::~Sender()
@@ -104,6 +158,39 @@ Sender::~Sender()
             spdlog::warn(
                 "can't properly close network context: uid={} err={}", device_uid_, err);
         }
+    }
+}
+
+void Sender::configure_slot(const DeviceSlotConfig& slot_config)
+{
+    int err = 0;
+
+    roc_slot_config net_slot_config;
+    memset(&net_slot_config, 0, sizeof(net_slot_config));
+
+    if (!slot_config.tracks.empty()
+        && !parse_track_mask(slot_config.tracks, net_slot_config.track_mask)) {
+        throw std::invalid_argument(
+            fmt::format("invalid slot tracks \"{}\": uid={} slot={}",
+                slot_config.tracks,
+                device_uid_,
+                slot_config.slot));
+    }
+
+    if (slot_config.name.size() >= sizeof(net_slot_config.slot_name)) {
+        throw std::invalid_argument(fmt::format(
+            "slot name too long: uid={} slot={}", device_uid_, slot_config.slot));
+    }
+    memcpy(net_slot_config.slot_name, slot_config.name.c_str(),
+        slot_config.name.size() + 1);
+
+    if ((err = roc_sender_configure_slot(
+             net_sender_, slot_config.slot, &net_slot_config)) < 0) {
+        throw std::invalid_argument(fmt::format(
+            "invalid slot config: uid={} slot={} err={}",
+            device_uid_,
+            slot_config.slot,
+            err));
     }
 }
 

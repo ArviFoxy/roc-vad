@@ -264,16 +264,7 @@ void device_info_from_rpc(DeviceInfo& out, const rvpb::RvDeviceInfo& in)
         // later, when the device is built.
         for (const auto& in_slot : in.sender_config().slots()) {
             DeviceSlotConfig out_slot;
-
-            if (in_slot.has_slot()) {
-                out_slot.slot = in_slot.slot();
-            }
-            if (in_slot.has_tracks()) {
-                out_slot.tracks = in_slot.tracks();
-            }
-            if (in_slot.has_name()) {
-                out_slot.name = in_slot.name();
-            }
+            slot_config_from_rpc(out_slot, in_slot);
 
             bool duplicate = false;
             for (const auto& prev_slot : out.sender_config->slots) {
@@ -624,6 +615,19 @@ void packet_encoding_to_rpc(rvpb::RvPacketEncoding& out, const DevicePacketEncod
         "RvPacketEncoding.channel_layout", channel_layout_map, in.spec.channels));
     if (in.spec.channels == ROC_CHANNEL_LAYOUT_MULTITRACK) {
         out.set_track_count((uint32_t)in.spec.tracks);
+    }
+}
+
+void slot_config_from_rpc(DeviceSlotConfig& out, const rvpb::RvSenderSlotConfig& in)
+{
+    if (in.has_slot()) {
+        out.slot = in.slot();
+    }
+    if (in.has_tracks()) {
+        out.tracks = in.tracks();
+    }
+    if (in.has_name()) {
+        out.name = in.name();
     }
 }
 

@@ -48,7 +48,8 @@ public:
     void toggle(bool enabled);
 
     DeviceEndpointInfo bind(DeviceEndpointInfo endpoint_info);
-    DeviceEndpointInfo connect(DeviceEndpointInfo endpoint_info);
+    DeviceEndpointInfo connect(DeviceEndpointInfo endpoint_info,
+        const std::optional<DeviceSlotConfig>& slot_config = std::nullopt);
 
 private:
     void bind_endpoint_(DeviceEndpointInfo& endpoint_info);

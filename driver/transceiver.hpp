@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <stdexcept>
 
 namespace rocvad {
 
@@ -30,6 +31,14 @@ public:
     // may throw
     virtual void bind(DeviceEndpointInfo& endpoint_info) = 0;
     virtual void connect(DeviceEndpointInfo& endpoint_info) = 0;
+
+    // for sender: apply per-slot parameters (multiroom track selection,
+    // metrics label) before the slot's first endpoint operation
+    // may throw
+    virtual void configure_slot(const DeviceSlotConfig& slot_config)
+    {
+        throw std::invalid_argument("device is not a sender");
+    }
 
     // called when I/O is stopped / started
     virtual void pause() noexcept = 0;

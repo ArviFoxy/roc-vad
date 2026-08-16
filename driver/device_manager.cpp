@@ -168,12 +168,13 @@ DeviceEndpointInfo DeviceManager::bind_device(const std::string& uid,
 }
 
 DeviceEndpointInfo DeviceManager::connect_device(index_t index,
-    DeviceEndpointInfo endpoint)
+    DeviceEndpointInfo endpoint,
+    const std::optional<DeviceSlotConfig>& slot_config)
 {
     std::lock_guard lock(mutex_);
 
     auto device = find_device_(index);
-    auto info = device->connect(endpoint);
+    auto info = device->connect(endpoint, slot_config);
 
     save_devices_();
 
@@ -181,12 +182,13 @@ DeviceEndpointInfo DeviceManager::connect_device(index_t index,
 }
 
 DeviceEndpointInfo DeviceManager::connect_device(const std::string& uid,
-    DeviceEndpointInfo endpoint)
+    DeviceEndpointInfo endpoint,
+    const std::optional<DeviceSlotConfig>& slot_config)
 {
     std::lock_guard lock(mutex_);
 
     auto device = find_device_(uid);
-    auto info = device->connect(endpoint);
+    auto info = device->connect(endpoint, slot_config);
 
     save_devices_();
 

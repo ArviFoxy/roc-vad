@@ -28,6 +28,15 @@ CmdDeviceConnect::CmdDeviceConnect(CLI::App& parent)
 
     command->add_option("--slot", slot_, "Select slot to which to connect endpoint(s)");
 
+    command->add_option("--track",
+        track_,
+        "Input track(s) the slot sends, e.g. '0', '2', or '0-1'"
+        " (multiroom; requires multitrack device encoding and --source)");
+    command->add_option("--slot-name",
+        slot_name_,
+        "Slot name, attached as 'slot' label to exported metrics"
+        " (requires --source)");
+
     command->add_option(
         "-s,--source", source_endpoint_, "Connect endpoint for audio source packets");
     command->add_option(
@@ -48,6 +57,12 @@ bool CmdDeviceConnect::execute(const Environment& env)
         spdlog::error(
             "at least one of the options should be specified:"
             " --source, --repair, --control");
+        return false;
+    }
+
+    if ((track_ || slot_name_) && !source_endpoint_) {
+        spdlog::error("--track and --slot-name require --source"
+                      " (slot parameters apply before the slot's first endpoint)");
         return false;
     }
 
@@ -74,8 +89,11 @@ bool CmdDeviceConnect::execute(const Environment& env)
     }
 
     if (source_endpoint_) {
-        if (!send_command_(
-                stub, "--source", rvpb::RV_INTERFACE_AUDIO_SOURCE, *source_endpoint_)) {
+        if (!send_command_(stub,
+                "--source",
+                rvpb::RV_INTERFACE_AUDIO_SOURCE,
+                *source_endpoint_,
+                true)) {
             return false;
         }
     }
@@ -102,7 +120,8 @@ bool CmdDeviceConnect::execute(const Environment& env)
 bool CmdDeviceConnect::send_command_(rvpb::RvDriver::Stub* stub,
     const char* name,
     rvpb::RvInterface interface,
-    const std::string& uri)
+    const std::string& uri,
+    bool attach_slot_config)
 {
     spdlog::debug("sending connect command for {} endpoint", name);
 
@@ -121,6 +140,19 @@ bool CmdDeviceConnect::send_command_(rvpb::RvDriver::Stub* stub,
     }
     request.mutable_endpoint()->set_interface(interface);
     request.mutable_endpoint()->set_uri(uri);
+
+    if (attach_slot_config && (track_ || slot_name_)) {
+        auto* slot_config = request.mutable_slot_config();
+        if (slot_) {
+            slot_config->set_slot(*slot_);
+        }
+        if (track_) {
+            slot_config->set_tracks(*track_);
+        }
+        if (slot_name_) {
+            slot_config->set_name(*slot_name_);
+        }
+    }
 
     const grpc::Status status = stub->connect(&context, request, &response);
 

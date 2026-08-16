@@ -25,6 +25,8 @@ void packet_encoding_from_rpc(DevicePacketEncoding& out,
     const rvpb::RvPacketEncoding& in);
 void packet_encoding_to_rpc(rvpb::RvPacketEncoding& out, const DevicePacketEncoding& in);
 
+void slot_config_from_rpc(DeviceSlotConfig& out, const rvpb::RvSenderSlotConfig& in);
+
 void endpoint_info_from_rpc(DeviceEndpointInfo& out, const rvpb::RvEndpointInfo& in);
 void endpoint_info_to_rpc(rvpb::RvEndpointInfo& out, const DeviceEndpointInfo& in);
 
