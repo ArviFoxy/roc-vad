@@ -530,7 +530,11 @@ void packet_encoding_from_rpc(DevicePacketEncoding& out, const rvpb::RvPacketEnc
         throw std::invalid_argument("RvPacketEncoding.sample_rate should not be zero");
     }
 
-    out.spec.format = enum_from_rpc(
+    // roc splits the encoding in two: format says which family (only PCM is
+    // supported), subformat says the sample representation. sample_format_map
+    // covers the subformat; the family is always PCM here.
+    out.spec.format = ROC_FORMAT_PCM;
+    out.spec.subformat = enum_from_rpc(
         "RvPacketEncoding.sample_format", sample_format_map, in.sample_format());
 
     out.spec.channels = enum_from_rpc(
@@ -562,8 +566,8 @@ void packet_encoding_to_rpc(rvpb::RvPacketEncoding& out, const DevicePacketEncod
 {
     out.set_encoding_id(in.id);
     out.set_sample_rate(in.spec.rate);
-    out.set_sample_format(
-        enum_to_rpc("RvPacketEncoding.sample_format", sample_format_map, in.spec.format));
+    out.set_sample_format(enum_to_rpc(
+        "RvPacketEncoding.sample_format", sample_format_map, in.spec.subformat));
     out.set_channel_layout(enum_to_rpc(
         "RvPacketEncoding.channel_layout", channel_layout_map, in.spec.channels));
     if (in.spec.channels == ROC_CHANNEL_LAYOUT_MULTITRACK) {

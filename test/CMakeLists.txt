@@ -15,6 +15,7 @@ add_executable(${TEST_EXE}
   test_index_allocator.cpp
   test_request_handler.cpp
   test_ring_buffer.cpp
+  test_sample_format.cpp
   test_uid_generator.cpp
 )
 

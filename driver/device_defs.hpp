@@ -48,9 +48,12 @@ struct DeviceLocalEncoding
 struct DevicePacketEncoding
 {
     roc_packet_encoding id = (roc_packet_encoding)0;
+    // Field order must match roc_media_encoding: designated initializers have
+    // to appear in declaration order.
     roc_media_encoding spec = {
-        .rate = 0,
         .format = (roc_format)0,
+        .subformat = (roc_subformat)0,
+        .rate = 0,
         .channels = (roc_channel_layout)0,
         .tracks = 0,
     };

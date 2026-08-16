@@ -399,10 +399,63 @@ enum RvInterface
 
 // Sample format.
 // Defines how audio samples are encoded.
+//
+// Every value is uncompressed PCM; the name says the sample representation.
+// Numbering follows roc_subformat in roc/config.h so the two can be read side
+// by side, except for 16-bit signed, which keeps tag 0. proto3 requires a zero
+// value, and this enum already shipped with s16 there.
+//
+// Names without a _LE/_BE suffix are NATIVE endian. For a packet (wire)
+// encoding that is only safe when both ends agree; prefer an explicit variant
+// when the peers might differ.
 enum RvSampleFormat
 {
-    // Uncompressed PCM, 16-bit signed integers, network endian.
+    // 16-bit signed integer, native endian. Tag 0 for proto3 and for
+    // compatibility with clients built before the other formats existed.
     ROC_FORMAT_PCM_SINT16 = 0;
+
+    // 8-bit
+    ROC_SUBFORMAT_PCM_SINT8 = 40;
+    ROC_SUBFORMAT_PCM_UINT8 = 41;
+
+    // 16-bit
+    ROC_SUBFORMAT_PCM_SINT16_LE = 51;
+    ROC_SUBFORMAT_PCM_SINT16_BE = 52;
+    ROC_SUBFORMAT_PCM_UINT16 = 53;
+    ROC_SUBFORMAT_PCM_UINT16_LE = 54;
+    ROC_SUBFORMAT_PCM_UINT16_BE = 55;
+
+    // 24-bit
+    ROC_SUBFORMAT_PCM_SINT24 = 60;
+    ROC_SUBFORMAT_PCM_SINT24_LE = 61;
+    ROC_SUBFORMAT_PCM_SINT24_BE = 62;
+    ROC_SUBFORMAT_PCM_UINT24 = 63;
+    ROC_SUBFORMAT_PCM_UINT24_LE = 64;
+    ROC_SUBFORMAT_PCM_UINT24_BE = 65;
+
+    // 32-bit integer
+    ROC_SUBFORMAT_PCM_SINT32 = 70;
+    ROC_SUBFORMAT_PCM_SINT32_LE = 71;
+    ROC_SUBFORMAT_PCM_SINT32_BE = 72;
+    ROC_SUBFORMAT_PCM_UINT32 = 73;
+    ROC_SUBFORMAT_PCM_UINT32_LE = 74;
+    ROC_SUBFORMAT_PCM_UINT32_BE = 75;
+
+    // 64-bit integer
+    ROC_SUBFORMAT_PCM_SINT64 = 80;
+    ROC_SUBFORMAT_PCM_SINT64_LE = 81;
+    ROC_SUBFORMAT_PCM_SINT64_BE = 82;
+    ROC_SUBFORMAT_PCM_UINT64 = 83;
+    ROC_SUBFORMAT_PCM_UINT64_LE = 84;
+    ROC_SUBFORMAT_PCM_UINT64_BE = 85;
+
+    // floating point
+    ROC_SUBFORMAT_PCM_FLOAT32 = 90;
+    ROC_SUBFORMAT_PCM_FLOAT32_LE = 91;
+    ROC_SUBFORMAT_PCM_FLOAT32_BE = 92;
+    ROC_SUBFORMAT_PCM_FLOAT64 = 93;
+    ROC_SUBFORMAT_PCM_FLOAT64_LE = 94;
+    ROC_SUBFORMAT_PCM_FLOAT64_BE = 95;
 }
 
 // Channel layout.

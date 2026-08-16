@@ -22,7 +22,7 @@ template <class E1, class E2>
 using enum_map = std::vector<std::tuple<E1, E2, std::string>>;
 
 extern enum_map<rvpb::RvInterface, roc_interface> interface_map;
-extern enum_map<rvpb::RvSampleFormat, roc_format> sample_format_map;
+extern enum_map<rvpb::RvSampleFormat, roc_subformat> sample_format_map;
 extern enum_map<rvpb::RvChannelLayout, roc_channel_layout> channel_layout_map;
 extern enum_map<rvpb::RvFecEncoding, roc_fec_encoding> fec_encoding_map;
 extern enum_map<rvpb::RvLatencyTunerBackend, roc_latency_tuner_backend>

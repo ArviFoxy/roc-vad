@@ -43,7 +43,12 @@ Receiver::Receiver(const std::string& device_uid,
     memset(&net_receiver_config, 0, sizeof(net_receiver_config));
 
     net_receiver_config.frame_encoding.rate = device_encoding.sample_rate;
-    net_receiver_config.frame_encoding.format = ROC_FORMAT_PCM_FLOAT32;
+    // Fixed float32: this is the CoreAudio side, whose stream is float32
+    // (device.cpp sets kAudioFormatFlagIsFloat) and whose IO paths here are
+    // float*. Only the packet encoding is user-selectable; roc converts
+    // between the two.
+    net_receiver_config.frame_encoding.format = ROC_FORMAT_PCM;
+    net_receiver_config.frame_encoding.subformat = ROC_SUBFORMAT_PCM_FLOAT32;
     net_receiver_config.frame_encoding.channels = device_encoding.channel_layout;
     if (device_encoding.channel_layout == ROC_CHANNEL_LAYOUT_MULTITRACK) {
         net_receiver_config.frame_encoding.tracks = device_encoding.channel_count;

@@ -17,9 +17,53 @@ enum_map<rvpb::RvInterface, roc_interface> interface_map {
     {rvpb::RV_INTERFACE_AUDIO_CONTROL, ROC_INTERFACE_AUDIO_CONTROL, "audioctl"},
 };
 
-enum_map<rvpb::RvSampleFormat, roc_format> sample_format_map {
-    // FIXME
-    {rvpb::ROC_FORMAT_PCM_SINT16, ROC_FORMAT_PCM_FLOAT32, "s16"},
+// PCM only: roc_format has a single member, ROC_FORMAT_PCM, and the sample
+// representation lives in roc_subformat. Mapping to the subformat alone keeps
+// the generic three-tuple enum_map usable here; callers pair it with
+// ROC_FORMAT_PCM when filling roc_media_encoding.
+//
+// Names match roc's own subformat names (roc_audio/pcm_subformat.h), so
+// "--packet-encoding-format s24" lines up with the "pcm@s24/48000/stereo"
+// syntax roc uses elsewhere.
+enum_map<rvpb::RvSampleFormat, roc_subformat> sample_format_map {
+    // 8-bit
+    {rvpb::ROC_SUBFORMAT_PCM_SINT8, ROC_SUBFORMAT_PCM_SINT8, "s8"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT8, ROC_SUBFORMAT_PCM_UINT8, "u8"},
+    // 16-bit
+    {rvpb::ROC_FORMAT_PCM_SINT16, ROC_SUBFORMAT_PCM_SINT16, "s16"},
+    {rvpb::ROC_SUBFORMAT_PCM_SINT16_LE, ROC_SUBFORMAT_PCM_SINT16_LE, "s16_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_SINT16_BE, ROC_SUBFORMAT_PCM_SINT16_BE, "s16_be"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT16, ROC_SUBFORMAT_PCM_UINT16, "u16"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT16_LE, ROC_SUBFORMAT_PCM_UINT16_LE, "u16_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT16_BE, ROC_SUBFORMAT_PCM_UINT16_BE, "u16_be"},
+    // 24-bit
+    {rvpb::ROC_SUBFORMAT_PCM_SINT24, ROC_SUBFORMAT_PCM_SINT24, "s24"},
+    {rvpb::ROC_SUBFORMAT_PCM_SINT24_LE, ROC_SUBFORMAT_PCM_SINT24_LE, "s24_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_SINT24_BE, ROC_SUBFORMAT_PCM_SINT24_BE, "s24_be"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT24, ROC_SUBFORMAT_PCM_UINT24, "u24"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT24_LE, ROC_SUBFORMAT_PCM_UINT24_LE, "u24_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT24_BE, ROC_SUBFORMAT_PCM_UINT24_BE, "u24_be"},
+    // 32-bit integer
+    {rvpb::ROC_SUBFORMAT_PCM_SINT32, ROC_SUBFORMAT_PCM_SINT32, "s32"},
+    {rvpb::ROC_SUBFORMAT_PCM_SINT32_LE, ROC_SUBFORMAT_PCM_SINT32_LE, "s32_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_SINT32_BE, ROC_SUBFORMAT_PCM_SINT32_BE, "s32_be"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT32, ROC_SUBFORMAT_PCM_UINT32, "u32"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT32_LE, ROC_SUBFORMAT_PCM_UINT32_LE, "u32_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT32_BE, ROC_SUBFORMAT_PCM_UINT32_BE, "u32_be"},
+    // 64-bit integer
+    {rvpb::ROC_SUBFORMAT_PCM_SINT64, ROC_SUBFORMAT_PCM_SINT64, "s64"},
+    {rvpb::ROC_SUBFORMAT_PCM_SINT64_LE, ROC_SUBFORMAT_PCM_SINT64_LE, "s64_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_SINT64_BE, ROC_SUBFORMAT_PCM_SINT64_BE, "s64_be"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT64, ROC_SUBFORMAT_PCM_UINT64, "u64"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT64_LE, ROC_SUBFORMAT_PCM_UINT64_LE, "u64_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_UINT64_BE, ROC_SUBFORMAT_PCM_UINT64_BE, "u64_be"},
+    // floating point
+    {rvpb::ROC_SUBFORMAT_PCM_FLOAT32, ROC_SUBFORMAT_PCM_FLOAT32, "f32"},
+    {rvpb::ROC_SUBFORMAT_PCM_FLOAT32_LE, ROC_SUBFORMAT_PCM_FLOAT32_LE, "f32_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_FLOAT32_BE, ROC_SUBFORMAT_PCM_FLOAT32_BE, "f32_be"},
+    {rvpb::ROC_SUBFORMAT_PCM_FLOAT64, ROC_SUBFORMAT_PCM_FLOAT64, "f64"},
+    {rvpb::ROC_SUBFORMAT_PCM_FLOAT64_LE, ROC_SUBFORMAT_PCM_FLOAT64_LE, "f64_le"},
+    {rvpb::ROC_SUBFORMAT_PCM_FLOAT64_BE, ROC_SUBFORMAT_PCM_FLOAT64_BE, "f64_be"},
 };
 
 enum_map<rvpb::RvChannelLayout, roc_channel_layout> channel_layout_map {
