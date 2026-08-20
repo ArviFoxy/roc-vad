@@ -18,6 +18,7 @@ add_executable(${TEST_EXE}
   test_ring_buffer.cpp
   test_sample_format.cpp
   test_uid_generator.cpp
+  test_volume_control.cpp
 )
 
 target_link_libraries(${TEST_EXE} PRIVATE

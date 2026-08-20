@@ -22,6 +22,7 @@ add_library(${DRIVER_LIB} STATIC
   rpc_serdes.cpp
   sender.cpp
   uid_generator.cpp
+  volume_control.cpp
 )
 
 add_library(${DRIVER_BUNDLE_NAME} MODULE

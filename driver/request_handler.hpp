@@ -13,6 +13,7 @@
 
 #include <aspl/Device.hpp>
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -22,9 +23,18 @@ namespace rocvad {
 class RequestHandler : public aspl::ControlRequestHandler, public aspl::IORequestHandler
 {
 public:
+    // volume_gain returns the gain to apply to the samples, evaluated once per
+    // buffer on the realtime thread. The device passes one reading its HAL
+    // volume control, which is published to CoreAudio but deliberately not
+    // attached to the stream: attaching is what makes libASPL apply the volume
+    // itself, and it does so by multiplying by the scalar, a linear-amplitude
+    // taper. Taking a callable rather than the control keeps this class off
+    // libASPL's volume API, which cannot be constructed outside the library
+    // anyway -- VolumeCurve is incomplete in the installed headers.
     RequestHandler(const std::string& device_uid,
         const DeviceLocalEncoding& device_encoding,
-        std::shared_ptr<Transceiver> net_transceiver);
+        std::shared_ptr<Transceiver> net_transceiver,
+        std::function<float()> volume_gain);
 
     RequestHandler(const RequestHandler&) = delete;
     RequestHandler& operator=(const RequestHandler&) = delete;
@@ -50,11 +60,14 @@ public:
 private:
     using timestamp_t = RingBuffer::timestamp_t;
 
+    void apply_volume_(float* samples, size_t sample_cnt) const;
+
     const std::string device_uid_;
 
     const size_t chan_count_;
 
     std::shared_ptr<Transceiver> net_transceiver_;
+    const std::function<float()> volume_gain_;
 
     RingBuffer ring_buf_;
     timestamp_t ring_buf_pos_ = 0;

@@ -137,7 +137,9 @@ struct RequestHandlerTest : testing::Test
             *receiver_info.receiver_config);
 
         receiver_handler = std::make_shared<RequestHandler>(
-            receiver_info.uid, receiver_info.device_encoding, receiver);
+            receiver_info.uid, receiver_info.device_encoding, receiver, [] {
+                return 1.0f;
+            });
 
         for (auto& endpoint : receiver_info.local_endpoints) {
             receiver->bind(endpoint);
@@ -147,7 +149,9 @@ struct RequestHandlerTest : testing::Test
             sender_info.uid, sender_info.device_encoding, *sender_info.sender_config);
 
         sender_handler = std::make_shared<RequestHandler>(
-            sender_info.uid, sender_info.device_encoding, sender);
+            sender_info.uid, sender_info.device_encoding, sender, [] {
+                return 1.0f;
+            });
 
         for (auto& endpoint : sender_info.remote_endpoints) {
             sender->connect(endpoint);
@@ -338,8 +342,10 @@ TEST_F(MultiroomRequestHandlerTest, track_per_leg)
 
         auto receiver = std::make_shared<Receiver>(
             info.uid, info.device_encoding, *info.receiver_config);
-        auto handler =
-            std::make_shared<RequestHandler>(info.uid, info.device_encoding, receiver);
+        auto handler = std::make_shared<RequestHandler>(
+            info.uid, info.device_encoding, receiver, [] {
+                return 1.0f;
+            });
 
         for (auto& endpoint : info.local_endpoints) {
             receiver->bind(endpoint);
@@ -354,7 +360,9 @@ TEST_F(MultiroomRequestHandlerTest, track_per_leg)
     auto sender = std::make_shared<Sender>(
         sender_info.uid, sender_info.device_encoding, *sender_info.sender_config);
     auto sender_handler = std::make_shared<RequestHandler>(
-        sender_info.uid, sender_info.device_encoding, sender);
+        sender_info.uid, sender_info.device_encoding, sender, [] {
+            return 1.0f;
+        });
 
     for (auto& endpoint : sender_info.remote_endpoints) {
         sender->connect(endpoint);

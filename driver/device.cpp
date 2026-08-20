@@ -10,6 +10,7 @@
 #include "build_info.hpp"
 #include "receiver.hpp"
 #include "sender.hpp"
+#include "volume_control.hpp"
 
 #include <fmt/core.h>
 #include <spdlog/spdlog.h>
@@ -193,12 +194,41 @@ Device::Device(std::shared_ptr<aspl::Plugin> hal_plugin,
     // create HAL device
     hal_device_ = std::make_shared<aspl::Device>(
         hal_plugin_->GetContext(), make_device_params(info_));
-    // add single input our output stream with volume control
-    hal_device_->AddStreamWithControlsAsync(make_stream_params(info_));
+    // add single input our output stream, with volume and mute controls
+    //
+    // Spelled out rather than using AddStreamWithControlsAsync(), which is this
+    // sequence plus stream->AttachVolumeControl(). Attaching is what makes
+    // libASPL apply the volume itself, and it does so by multiplying samples by
+    // the scalar, which is a linear-amplitude taper: half the slider would be
+    // -6 dB and a tenth of it -20 dB, leaving no usable range. The control is
+    // still published to the HAL, so the slider works; RequestHandler reads it
+    // and applies a logarithmic taper instead. Mute is attached as usual, its
+    // behaviour being a plain on/off.
+    const auto stream_params = make_stream_params(info_);
+
+    const auto volume_scope = stream_params.Direction == aspl::Direction::Output
+                                  ? kAudioObjectPropertyScopeOutput
+                                  : kAudioObjectPropertyScopeInput;
+
+    auto hal_stream = hal_device_->AddStreamAsync(stream_params);
+
+    aspl::VolumeControlParameters volume_params;
+    volume_params.Scope = volume_scope;
+    volume_params.MinDecibelVolume = -VolumeRangeDb;
+    volume_params.MaxDecibelVolume = 0;
+
+    auto volume_control = hal_device_->AddVolumeControlAsync(volume_params);
+    volume_control->SetScalarValue(InitialVolumeScalar);
+
+    hal_stream->AttachMuteControl(hal_device_->AddMuteControlAsync(volume_scope));
 
     // create HAL request handler
-    req_handler_ = std::make_shared<RequestHandler>(
-        info_.uid, info_.device_encoding, net_transceiver_);
+    req_handler_ = std::make_shared<RequestHandler>(info_.uid,
+        info_.device_encoding,
+        net_transceiver_,
+        [volume_control] {
+            return volume_scalar_to_gain(volume_control->GetScalarValue());
+        });
     // register handler
     hal_device_->SetControlHandler(req_handler_);
     hal_device_->SetIOHandler(req_handler_);
