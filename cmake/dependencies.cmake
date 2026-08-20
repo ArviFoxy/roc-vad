@@ -115,10 +115,19 @@ set(ROC_3RDPARTY "all" CACHE STRING
   "Value passed to roc-toolkit's scons --build-3rdparty")
 
 # Roc
-set(ROC_SOURCE "https://github.com/ArviFoxy/roc-toolkit.git"
-  CACHE STRING "roc-toolkit git repository (URL or local path)")
-set(ROC_TAG "multiroom"
-  CACHE STRING "roc-toolkit git tag/branch/commit")
+#
+# Plain variables with a -D override, not CACHE defaults: a cached value
+# survives reconfiguration, so after a branch switch an existing build
+# directory would keep fetching the OTHER branch's ROC_TAG forever. With
+# this shape the branch's default applies on every configure, and an
+# explicit -DROC_SOURCE/-DROC_TAG still wins (it lands in the cache,
+# which DEFINED sees).
+if(NOT DEFINED ROC_SOURCE)
+  set(ROC_SOURCE "https://github.com/ArviFoxy/roc-toolkit.git")
+endif()
+if(NOT DEFINED ROC_TAG)
+  set(ROC_TAG "multiroom")
+endif()
 
 set(SCONS_CMD
   scons -j ${NUM_CPU}
