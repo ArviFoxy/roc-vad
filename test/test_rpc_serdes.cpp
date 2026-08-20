@@ -8,8 +8,8 @@
 
 #include <gtest/gtest.h>
 
-#include "device_defs.hpp"
-#include "rpc_serdes.hpp"
+#include "driver/device_defs.hpp"
+#include "driver/rpc_serdes.hpp"
 
 using namespace rocvad;
 
