@@ -18,6 +18,9 @@ TEST(RpcSerdesTest, sender_slots_round_trip)
 {
     DeviceInfo info;
     info.type = DeviceType::Sender;
+    // The wire contract requires index to be unset or non-zero, and the
+    // serializer always sets it; a real device always has one assigned.
+    info.index = 1;
     info.uid = "test-uid";
     info.name = "test-device";
     info.sender_config = DeviceSenderConfig {};
