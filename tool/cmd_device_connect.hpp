@@ -28,7 +28,8 @@ private:
     bool send_command_(rvpb::RvDriver::Stub* stub,
         const char* name,
         rvpb::RvInterface interface,
-        const std::string& uri);
+        const std::string& uri,
+        bool attach_slot_config = false);
 
     bool use_uid_ = false;
     std::string index_or_uid_;
