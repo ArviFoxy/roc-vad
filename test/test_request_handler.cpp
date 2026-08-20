@@ -252,6 +252,8 @@ struct MultiroomRequestHandlerTest : testing::Test
         .sender_config =
             DeviceSenderConfig {
                 .packet_encoding = mono_packet_encoding(),
+                // Plain rtp:// endpoints below are only legal without FEC.
+                .fec_encoding = ROC_FEC_ENCODING_DISABLE,
                 .latency_tuner_profile = ROC_LATENCY_TUNER_PROFILE_INTACT,
                 .slots =
                     {
